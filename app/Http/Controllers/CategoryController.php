@@ -100,10 +100,12 @@ class CategoryController extends Controller
 
                 $response = [];
 
-                $queryHaving = "SELECT P.id, P.prodName_fa, P.prodID, P.url, PP.price, PP.status FROM products P RIGHT JOIN product_pack PP ON P.id = PP.product_id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
-                    WHERE C.id = $request->id OR C.parentID = $request->id)" . $having . $name . $minPrice . $maxPrice . $order ;
-                $queryFinished = "SELECT P.id, P.prodName_fa, P.prodID, P.url, -1 AS price, PP.status FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
-                    WHERE C.id = $request->id OR C.parentID = $request->id)" . $finished . $name . $minPrice . $maxPrice . $order;
+                /* P.id, P.prodName_fa, P.prodID, P.url, PP.price, PP.status */
+
+                $queryHaving = "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P RIGHT JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                    WHERE C.id = $request->id OR C.parentID = $request->id)" . $having . $name . $minPrice . $maxPrice . " AND PP.status = 1 " . $order ;
+                $queryFinished = "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, -1 AS price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                    WHERE C.id = $request->id OR C.parentID = $request->id)" . $finished . $name . $minPrice . $maxPrice . " AND PP.status = 1 " . $order;
                 $havingProducts = DB::select($queryHaving);
                 $finishedProducts = DB::select($queryFinished);
                 $products = [];
@@ -148,14 +150,25 @@ class CategoryController extends Controller
                                 }
                             }
                             if($i === $distinctFiltersCount){
-                                $object = new stdClass();
-                                $object->productId = $p->id;
+                                $productObject = new stdClass();
+                                /*$object->productId = $p->id;
                                 $object->categoryId = $request->id;
                                 $object->productName = $p->prodName_fa;
                                 $object->productUrl = $p->url;
                                 $object->prodID = $p->prodID;
-                                $object->productPrice = $p->price;
-                                array_push($allResponses, $object);
+                                $object->productPrice = $p->price;*/
+                                $productObject->productId = $p->id;
+                                $productObject->productName = $p->prodName_fa;
+                                $productObject->prodID = $p->prodID;
+                                $productObject->categoryId = $p->category;
+                                $productObject->productPrice = $p->price;
+                                $productObject->productUrl = $p->url;
+                                $productObject->productBasePrice = $p->base_price;
+                                //$productObject->productCount = $value->count;
+                                $productObject->productUnitCount = $p->count;
+                                $productObject->productUnitName = $p->prodUnite;
+                                $productObject->productLabel = $p->label;
+                                array_push($allResponses, $productObject);
                             }
                         }
                         $r = array_slice($allResponses, ($request->page - 1)*12, 12);
@@ -163,14 +176,25 @@ class CategoryController extends Controller
                         echo json_encode(array('status' => 'done', 'found' => true, 'categoryName' => $category->name, 'count' => count($allResponses), 'products' => $response, 'message' => 'products are successfully found'));
                     }else{
                         foreach($products as $pr){
-                            $object = new stdClass();
-                            $object->productId = $pr->id;
+                            $productObject = new stdClass();
+                            /*$object->productId = $pr->id;
                             $object->categoryId = $request->id;
                             $object->productName = $pr->prodName_fa;
                             $object->productUrl = $pr->url;
                             $object->prodID = $pr->prodID;
-                            $object->productPrice = $pr->price;
-                            array_push($allResponses, $object);
+                            $object->productPrice = $pr->price;*/
+                            $productObject->productId = $pr->id;
+                            $productObject->productName = $pr->prodName_fa;
+                            $productObject->prodID = $pr->prodID;
+                            $productObject->categoryId = $pr->category;
+                            $productObject->productPrice = $pr->price;
+                            $productObject->productUrl = $pr->url;
+                            $productObject->productBasePrice = $pr->base_price;
+                            //$productObject->productCount = $value->count;
+                            $productObject->productUnitCount = $pr->count;
+                            $productObject->productUnitName = $pr->prodUnite;
+                            $productObject->productLabel = $pr->label;
+                            array_push($allResponses, $productObject);
                         }
                         $r = array_slice($allResponses, ($request->page - 1)*12, 12);
                         $response = DiscountCalculator::calculateProductsDiscount($r);

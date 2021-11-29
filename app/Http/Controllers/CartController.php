@@ -33,7 +33,7 @@ class CartController extends Controller
                 "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE P.id = $key");
+                WHERE PP.status = 1 AND P.id = $key");
             if(count($product) !== 0){
                 $product = $product[0];
                 $productStatus = -1;
@@ -484,7 +484,7 @@ class CartController extends Controller
                 "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE P.id = $cartItem->id");
+                WHERE PP.status = 1 AND P.id = $cartItem->id");
             if(count($product) !== 0){
                 $product = $product[0];
                 $productStatus = -1;

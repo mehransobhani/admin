@@ -141,35 +141,21 @@ Route::get('/check-test', function(){
 });
 
 Route::get('aaa', function(){
-    $allTimes = DB::select("SELECT WT.day, WT.interval_id FROM work_times WT INNER JOIN work_time_interval WTI ON WT.interval_id = WTI.id ORDER BY WT.day ASC, WT.interval_id ASC");
-    if(count($allTimes) === 0){
-        echo json_encode(array('status' => 'failed', 'message' => 'not interval found', 'umessage' => 'بازه زمانی فعالی وجود ندارد'));
-        exit();
-    }
-    $time = time();
-    $t = strtotime("2021-11-24 15:02:45");
-    echo "current time: " . $time;
+    
+});
 
-    $todayDate= floor($time/(60*60*24)) * (60*60*24);
-    echo "today Date : " . $todayDate;
-    $todayNumer = date('w', $time);
-
-    $foundDatesInformation = [];
-    $threeWeeksAllWorkDates = [];
-    $firstOfThisWeek = floor($time/(60*60*24*7)) * (60*60*24*7);
-
-    for($k = 0; $k < 2; $k++){
-        for($a=0; $a<sizeof($allTimes); $a++){
-            $b = new stdClass();
-            $b->time = ($k * 7* 27* 3600) + ($allTimes[$a]->day * 24*3600) * $allTimes[$a]->type_house;
-            $b->max_count = $allTimes[$a]->max_item_count;
-            $b->expire = $allTimes[$a]->expire_time;
-            array_push($threeWeeksAllWorkDates, $b); 
-        }
-    }
-
-
-    while(sizeof($foundDatesInformation) < 3){
-         
-    }
+Route::get('bbb', function() {
+    $currentTime = time();
+    $currentYear = intval(jdate('o', $currentTime, '', '', 'en'));
+    $currentMonth = intval(jdate('n', $currentTime, '', '', 'en'));
+    $currentDay = intval(jdate('j', $currentTime, '', '', 'en'));
+    $currentDay = floor($currentDay / 7);
+    //echo $currentDay . " /// ";
+    $currentHour = intval(jdate('G', $currentTime ,'', '', 'en'));
+    $currentMinute = intval(jdate('i', $currentTime, '', '', 'en'));
+    $currentSecond = intval(jdate('s', $currentTime, '', '', 'en'));
+    //echo "year : " . $currentYear . " Month : " . $currentMonth . " Day : " . $currentDay . " Hour : " . $currentHour . " Minute : " . $currentMinute . " Second : " . $currentSecond;
+    $firstdayOfWeek = jmktime(0, 0, 0, $currentMonth, $currentDay, $currentYear);
+    echo $firstdayOfWeek;
+    
 });

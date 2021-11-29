@@ -262,22 +262,124 @@ class DeliveryServiceController extends Controller
             return $inside;
     }
 
+    //@route: /api/user-delivery-service-work-times <--> @middleware: ApiAuthenticationMiddleware
     public function getDeliveryServiceWorkTimes (Request $request){
         if(!isset($request->deliveryServiceId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameters', 'umessage' => 'اطلاعات دریافتی کافی نیست'));
             exit();
         }
-        $serviceId = $request->deliveryServiceId;
-        if($serviceId != 1 && $serviceId != 2){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong input', 'umessage' => 'اطلاعات ورودی غلط است'));
+        $deliveryServiceId = $request->deliveryServiceId;
+        if($deliveryServiceId != 1 && $deliveryServiceId != 2){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong delivery service', 'umessage' => 'سرویس ارسال انتخابی غلط است'));
             exit();
         }
-        $allTimes = DB::select("SELECT WT.day, WT.interval_id FROM work_times WT INNER JOIN work_time_interval WTI ON WT.interval_id = WTI.id ORDER BY WT.day ASC, WT.interval_id ASC");
+        $allTimes = DB::select("SELECT WT.day, WT.interval_id, WT.type_house, WT.max_item_count, WT.expire_time, WT.label FROM work_times WT INNER JOIN work_time_interval WTI ON WT.interval_id = WTI.id ORDER BY WT.day ASC, WT.interval_id ASC");
         if(count($allTimes) === 0){
             echo json_encode(array('status' => 'failed', 'message' => 'not interval found', 'umessage' => 'بازه زمانی فعالی وجود ندارد'));
             exit();
         }
+        $currentTime = time();
+        $currentHour = intval(jdate('G', $currentTime ,'', '', 'en'));
+        $currentMinute = intval(jdate('i', $currentTime, '', '', 'en'));
+        $currentSecond = intval(jdate('s', $currentTime, '', '', 'en'));
+        $currentDayOfWeek = intval(jdate('w', $currentTime, '', '', 'en'));
+        $start = $currentTime - ($currentSecond + (60 * $currentMinute) + (3600 * $currentHour));
+        $start -= ($currentDayOfWeek * 86400);
+        $foundDatesInformation = [];
+        $found = false;
+        for($k = 0; $k <= 2; $k++){
+            if($found){
+                break;
+            }
+            for($a=0; $a<sizeof($allTimes); $a++){
+                $wt = $start + (($k * 7* 24* 3600) + ($allTimes[$a]->day * 24*3600) + $allTimes[$a]->type_house);
+                $wm = $allTimes[$a]->max_item_count;
+                $we = $allTimes[$a]->expire_time;
+                $wds = jdate('o/m/d', $wt, '', '', 'en');
+                $whs = jdate('G:i', $wt, '', '', 'en');
+                if($wt - $we > $currentTime){
+                    $freeDayResult = DB::select("SELECT id FROM free_day WHERE date = '$wds' AND time = '$whs'");
+                    if(count($freeDayResult) === 0){
+                        $count = DB::select("SELECT COUNT(post_time) AS c FROM order_info WHERE post_time = $wt");
+                        if(count($count) === 0 || $count[0]->c < $wm){
+                            $obj = new stdClass();
+                            $obj->timestamp = $wt;
+                            $obj->date = $wds;
+                            $obj->time = $whs;
+                            $obj->day = jdate('l', $wt);
+                            $obj->label = $allTimes[$a]->label;
+                            array_push($foundDatesInformation, $obj);
+                            if(count($foundDatesInformation) === 3){
+                                $found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(count($foundDatesInformation) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not find any available work time', 'umessasge' => 'هیچ بازه کاری فعالی یافت نشد'));
+            exit();
+        }
+        echo json_encode(array('status' => 'done', 'messsage' => 'successfully found available work times', 'workTimes' => $foundDatesInformation));
+    }
+
+    //@route: /api/user-set-delivery-service-temporary-information <--> @middleware: ApiAuthenticationMiddleware
+    public function setDeliveryServiceTemporaryInformation(Request $request){
+        if(!isset($request->serviceId) || !isset($request->workTime)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
+            exit();
+        }
+        $userId = $request->userId;
+        $serviceId = $request->serviceId;
+        $workTime = $request->workTime;
         $time = time();
-        
+        $activeTemporaryInformation = DB::select(
+            "SELECT * 
+            FROM delivery_service_temporary_information 
+            WHERE user_id = $userId AND expiration_date > $time"
+        );
+        if(count($activeTemporaryInformation) === 0){
+            $expirationDate = $time + (15 * 60);
+            $insertResult = DB::insert("INSERT INTO delivery_service_temporary_information
+                (user_id, service_id, work_time, expiration_date)
+                VALUES ($userId, $serviceId, $workTime, $expirationDate)"
+            );
+            if(!$insertResult){
+                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'error while inserting the new values', 'umessage' => 'خطا هنگام دخیره کردن اطلاعات جدید'));
+                exit();
+            }
+            echo json_encode(array('status' => 'done', 'message' => 'new values successfully inserted'));
+        }else{
+            $activeTemporaryInformation = $activeTemporaryInformation[0];
+            $expirationDate = $time + (15 * 60);
+            $updateResult = DB::update(
+                "UPDATE delivery_service_temporary_information
+                SET service_id = $serviceId, work_time = $workTime, expiration_date = $expirationDate
+                WHERE id = $activeTemporaryInformation->id"
+            );
+            if(!$updateResult){
+                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'error while updating the previous values', 'umessage' => 'خطا هنگامی ویرایش اطلاعات جدید'));
+                exit();
+            }
+            echo json_encode(array('status' => 'done', 'message' => 'current information successfully updated'));
+        }
+    } 
+
+    //@route: /api/user-check-temporary-delivery-info-existance <--> @middleware: ApiAuthenticationMiddleware
+    public function checkTemporaryDeliveryServiceInformationExistance(Request $request) {
+        $userId = $request->userId;
+        $currentTime = time();
+        $availableSelectedService = DB::select(
+            "SELECT * 
+            FROM delivery_service_temporary_information
+            WHERE user_id = $userId AND expiraton_date > $currentTime"
+        );
+        if(count($availableSelectedService) === 0){
+            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'user have not chosen a delivery service recently'));
+            exit();
+        }
+        echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'user have chosen a delivery service recently'));
     }
 }

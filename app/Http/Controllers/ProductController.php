@@ -258,4 +258,35 @@ class ProductController extends Controller
             echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
         }
     }
+
+    public function sixNewProducts(Request $request){
+        $products = DB::select("SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, C.id AS category, C.name AS categoryName
+            FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id 
+            WHERE PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND  PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock) 
+            ORDER BY P.id DESC LIMIT 6");
+        if(count($products) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'new products not found', 'umessage' => 'محصول جدیدی یافت نشد'));
+            exit();
+        }
+        $productArray = [];
+        foreach($products as $product){
+            $productObject = new stdClass();
+            $productObject->productId = $product->id;
+            $productObject->productName = $product->prodName_fa;
+            $productObject->prodID = $product->prodID;
+            $productObject->categoryId = $product->category;
+            $productObject->categoryName = $product->categoryName;
+            $productObject->productPrice = $product->price;
+            $productObject->productUrl = $product->url;
+            $productObject->productBasePrice = $product->base_price;
+            $productObject->maxCount = $product->packStock;
+            $productObject->productUnitCount = $product->count;
+            $productObject->productUnitName = $product->prodUnite;
+            $productObject->productLabel = $product->label;
+            array_push($productArray, $productObject);
+        }
+        $productArray = DiscountCalculator::calculateProductsDiscount($productArray);
+        echo json_encode(array('status' => 'done', 'message' => 'products found successfully', 'products' => $productArray));
+    }
+
 }

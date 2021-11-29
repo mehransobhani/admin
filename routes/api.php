@@ -103,7 +103,7 @@ Route::get('/get-banners', function () {
     echo json_encode(array('status' => 'done', 'banners' => array('firstImage' => $firstBannerImage, 'firstAnchor' => $firstBannerAnchor, 'secondImage' => $secondBannerImage, 'secondAnchor' => $secondBannerAnchor, 'thirdImage' => $thirdBannerImage, 'thirdAnchor' => $thirdBannerAnchor)));
 });
 
-Route::get('/get-six-new-products', function(){
+Route::get('/get-six-new-product', function(){
     $products = Product::where('prodStatus', 1)->orderBy('prodDate', 'DESC')->take(6);
     if($products->count() !== 0){
         $products = $products->get();
@@ -136,6 +136,7 @@ Route::get('/get-six-new-products', function(){
 
 
     /*##### Product routes #####*/
+    Route::get('six-new-products', [ProductController::class, 'sixNewProducts']);;
     Route::post('/product-basic-information', [ProductController::class, 'productBasicInformation']);
     Route::post('/product-description', [ProductController::class, 'productDescription']);
     Route::post('/product-features', [ProductController::class, 'productFeatures']);
@@ -178,7 +179,9 @@ Route::get('/get-six-new-products', function(){
         Route::post('/user-add-withdrawal-request',     [WalletController::class,           'addUserWithdrawalRequest']); // OK!
         Route::post('/user-check-address',              [UserController::class,             'checkUserAddress']); //OK!
         Route::post('/user-delivery-options',           [DeliveryServiceController::class,  'getAvailableDeliveryServices']); //------------
-        Route::post('/user-delivery-service-work-times',[DeliveryServiceController::class,  'getDeliveryServiceWorkTimes']); // TO BE TESTE !
+        Route::post('/user-delivery-service-work-times',[DeliveryServiceController::class,  'getDeliveryServiceWorkTimes']); // OK!
+        Route::post('/user-set-delivery-service-temporary-information', [DeliveryServiceController::class, 'setDeliveryServiceTemporaryInformation']);
+        Route::post('/user-check-temporary-delivery-info-existance', [DeliveryServiceController::class, 'checkTemporaryDeliveryServiceInformationExistance']);
     });
 
     /*##### Guest Based Routes #####*/
