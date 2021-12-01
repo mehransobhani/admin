@@ -60,6 +60,68 @@ class CartController extends Controller
         exit();
     }
 
+    //@route: /api/user-special-cart <--> @middleware: ApiAuthenticationMiddleware
+    public function userSpecialCart(Request $request){
+        $userId = $request->userId;
+        $user = DB::select("SELECT * FROM users WHERE id = $userId");
+        $user = $user[0];
+        $userCart = DB::select("SELECT products FROM shoppingCarts WHERE user_id = $userId AND active = 1");
+        if(count($userCart) === 0){
+            echo json_encode(array('status' => 'done', 'message' => 'cart is empty', 'cart' => '{}'));
+            exit();
+        }
+        $userCart = $userCart[0];
+        $userCart = json_decode($userCart->products);
+        $cartProducts = [];
+        if($user->address === '' || $user->address === NULL){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+            exit();
+        }
+        $addressPack = json_decode($user->address)->addressPack;
+        if($addressPack->province == -1){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+            exit();
+        }
+        $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$addressPack->province'");
+        if(count($provinceId) == 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'province could not be found', 'umessage' => 'استان کاربر یافت نشد'));
+            exit();
+        }
+        $provinceId = $provinceId[0];
+        $provinceId = $provinceId->id;
+        foreach($userCart as $key => $value){
+            $product = DB::select(
+                "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                FROM products P
+                INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
+                WHERE PP.status = 1 AND P.id = $key");
+            if(count($product) !== 0){
+                $product = $product[0];
+                $productStatus = -1;
+                if($product->prodStatus == 1 && $product->status === 1 && $product->packStock !==0 && $product->productStock !== 0 && ($product->count * $product->packStock <= $product->productStock) ){
+                    $productStatus = 1;
+                }
+                $productObject = new stdClass();
+                $productObject->productId = $product->id;
+                $productObject->productName = $product->prodName_fa;
+                $productObject->prodID = $product->prodID;
+                $productObject->categoryId = $product->category;
+                $productObject->productPrice = $product->price;
+                $productObject->productUrl = $product->url;
+                $productObject->productBasePrice = $product->base_price;
+                $productObject->productCount = $value->count;
+                $productObject->productUnitCount = $product->count;
+                $productObject->productUnitName = $product->prodUnite;
+                $productObject->productLabel = $product->label;
+                array_push($cartProducts, $productObject);
+            }
+        }
+        
+        $cartProducts = DiscountCalculator::calculateSpecialProductsDiscount($cartProducts, $userId, $provinceId);
+        echo json_encode(array('status' => 'done', 'message' => 'cart is received', 'cart' => $cartProducts));
+        exit();
+    }
+
     //@route: /api/user-cart-raw <--> @middleware: ApiAuthenticationMiddleware
     public function userCartRaw(Request $request){
         $userId = $request->userId;
@@ -690,5 +752,73 @@ class CartController extends Controller
         $productObject->productLabel = $product->label;
 
         echo json_encode(array('status' => 'done', 'message' => 'adding product is allowed', 'information' => $productObject));
+    }
+
+    public function cartFinalInformation(Request $request){
+        $userId = $request->userId;
+        $user = DB::select("SELECT * FROM users WHERE id = $userId");
+        $user = $user[0];
+        $cart = DB::select(
+            "SELECT products 
+            FROM shoppingCarts 
+            WHERE user_id = $userId AND active = 1 
+            ORDER BY timestamp DESC 
+            LIMIT 1"
+        );
+        if(count($cart) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'cart not found', 'umessage' => 'سبد خرید یافت نشد'));
+            exit();
+        }
+        $cart = json_decode($cart[0]->products);
+        $cartProducts = [];
+        foreach($cart as $key => $value){
+            $product = DB::select(
+                "SELECT P.id, P.prodName_fa, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                FROM products P
+                INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
+                WHERE PP.status = 1 AND P.prodStatus = 1 AND P.id = $key AND P.stock > 0 AND PP.stock > 0 AND (P.stock >= PP.stock * PP.count)");
+            if(count($product) !== 0){
+                $product = $product[0];
+                $productObject = new stdClass();
+                $productObject->productId = $product->id;
+                $productObject->productName = $product->prodName_fa;
+                $productObject->prodID = $product->prodID;
+                $productObject->categoryId = $product->category;
+                $productObject->productPrice = $product->price;
+                $productObject->productUrl = $product->url;
+                $productObject->productBasePrice = $product->base_price;
+                $productObject->productCount = $value->count;
+                $productObject->productUnitCount = $product->count;
+                $productObject->productUnitName = $product->prodUnite;
+                $productObject->productLabel = $product->label;
+                $productObject->productWeight = $product->prodWeight;
+                array_push($cartProducts, $productObject);
+            }
+        }
+        if($user->address === '' || $user->address === NULL){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+            return NULL;
+        }
+        $addressPack = json_decode($user->address)->addressPack;
+        if($addressPack->province == -1){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+            return NULL;
+        }
+        $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$addressPack->province'");
+        if(count($provinceId) == 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'province could not be found', 'umessage' => 'استان کاربر یافت نشد'));
+            return NULL;
+        }
+        $provinceId = $provinceId[0];
+        $provinceId = $provinceId->id;
+        $cityId = DB::select("SELECT id FROM cities WHERE city = '$addressPack->city'");
+        if(count($cityId) == 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'city could not be found', 'umessage' => 'شهر کاربر یافت نشد'));
+            return NULL;
+        }
+        $cityId = $cityId[0];
+        $cityId = $cityId->id;
+        $info = DiscountCalculator::totalDiscount($cartProducts, $user, $provinceId);
+        echo json_encode(array('status' => 'done', 'message' => 'discounts successfully found', 'information' => $info));
     }
 }

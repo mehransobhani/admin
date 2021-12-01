@@ -4,6 +4,7 @@ use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DeliveryServiceController;
+use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
@@ -161,6 +162,7 @@ Route::get('/get-six-new-product', function(){
     Route::middleware([ApiAuthenticationMiddleware::class])->group(function () {
         Route::post('/user-information',                [UserController::class,             'userInformation']); // OK!
         Route::post('/user-cart',                       [CartController::class,             'userCart']); // OK!
+        Route::post('/user-special-cart',               [CartController::class,             'userSpecialCart']); // OK!
         Route::post('/user-increase-cart-by-one',       [CartController::class,             'increaseCartByOne']); // OK!
         Route::post('/user-decrease-cart-by-one',       [CartController::class,             'decreaseCartByOne']); // OK!
         Route::post('/user-add-to-cart',                [CartController::class,             'addToCart']); // OK!
@@ -182,6 +184,8 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-delivery-service-work-times',[DeliveryServiceController::class,  'getDeliveryServiceWorkTimes']); // OK!
         Route::post('/user-set-delivery-service-temporary-information', [DeliveryServiceController::class, 'setDeliveryServiceTemporaryInformation']);
         Route::post('/user-check-temporary-delivery-info-existance', [DeliveryServiceController::class, 'checkTemporaryDeliveryServiceInformationExistance']);
+        Route::post('/user-check-gift-code',            [DiscountController::class,         'checkGiftCode']); // OK!
+        Route::post('/user-final-cart',                 [CartController::class,             'cartFinalInformation']); // TO BE TESTED!
     });
 
     /*##### Guest Based Routes #####*/

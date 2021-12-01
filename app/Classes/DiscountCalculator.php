@@ -2,6 +2,7 @@
 namespace App\Classes;
 use Illuminate\Support\Facades\DB;
 use stdClass;
+use App\Classes\ShippingCalculator;
 
 class DiscountCalculator{ 
 
@@ -243,5 +244,769 @@ class DiscountCalculator{
             }
         }
         return $deliveryOptions;
+    }
+
+    public static function evaluateGiftCode($giftCode, $userId, $cartPrice, $shippingPrice, $provinceId, $productIds, $categoryIds, $has){
+        $time = time();
+        $responseObject = new stdClass();
+        $discount = DB::select(
+            "SELECT * 
+            FROM discounts 
+            WHERE 
+                code = '$giftCode' AND
+                status = 1 AND 
+                (start_date IS NULL OR start_date <= $time) AND 
+                (finish_date IS NULL OR finish_date >= $time) AND 
+                (expiration_date IS NULL OR expiration_date >= $time) AND
+                (min_price IS NULL OR min_price <= $cartPrice)
+            LIMIT 1"
+        );
+        if(count($discount) === 0){
+            $responseObject->allowed = false;
+            $responseObject->discountPrice = 0;
+            $responseObject->type = '';
+            $responseObject->message = "discount not found";
+            $responseObject->umessage = "کد تخفیف معتبر نیست";
+            return $responseObject;
+        }
+        $discount = $discount[0];
+        if($has == 1 && $discount->joinable == 0){
+            $responseObject->allowed = false;
+            $responseObject->discountPrice = 0;
+            $responseObject->type = '';
+            $responseObject->message = "discount is not joinable";
+            $responseObject->umessage = "این کد تخفیف را نمتوانید با سایر کدها استفاده کنید";
+            return $responseObject;
+        }
+        if($discount->numbers_left === 0){
+            $responseObject->allowed = false;
+            $responseObject->discountPrice = 0;
+            $responseObject->type = '';
+            $responseObject->message = "discounts usage number is on its limit";
+            $responseObject->umessage = "تعداد دفعات استفاده از این تخفیف به پایان رسیده است";
+            return $responseObject;
+        }
+        if($discount->neworder == 1){
+            $userPreviousOrders = DB::select(
+                "SELECT id 
+                FROM orders 
+                WHERE user_id = $userId"
+            );
+            if(count($userPreviousOrders) !== 0){
+                $responseObject->allowed = false;
+                $responseObject->discountPrice = 0;
+                $responseObject->type = '';
+                $responseObject->message = "discount is for users with frist no orders yet";
+                $responseObject->umessage = "این کد تخفیف برای کاربرانی است که تاکنون خریدی نداشته‌اند";
+                return $responseObject;
+            }
+        }
+        if($discount->reusable == 0){
+            $timesThatUserUsedThisDiscount = DB::select(
+                "SELECT id 
+                FROM discount_logs 
+                WHERE user_id = $userId"
+            );
+            if(count($timesThatUserUsedThisDiscount) !== 0){
+                $responseObject->allowed = false;
+                $responseObject->discountPrice = 0;
+                $responseObject->type = '';
+                $responseObject->message = "discount has used this discount once";
+                $responseObject->umessage = "شما تاکنون از این تخفیف استفاده کرده‌اید";
+                return $responseObject;
+            }
+        }
+        $discountProvinceDependencies = DB::select(
+            "SELECT * 
+            FROM discount_dependencies 
+            WHERE discount_id = $discount->id AND dependency_type = 'province'"
+        );
+        if(count($discountProvinceDependencies) !== 0){
+            $found = false;
+            foreach($discountProvinceDependencies as $dependency){
+                if($dependency->dependency_id == $provinceId){
+                    $found = true;
+                }
+            }
+            if(!$found){
+                echo $provinceId;
+                $responseObject->allowed = false;
+                $responseObject->discountPrice = 0;
+                $responseObject->type = '';
+                $responseObject->message = "discount is not available in this province";
+                $responseObject->umessage = "این کد تخفیف برای استان شما فعال نیست";
+                return $responseObject;
+            }
+        }
+        $discountProductDependencies = DB::select(
+            "SELECT *
+            FROM discount_dependencies 
+            WHERE discount_id = $discount->id AND dependency_type = 'product'"
+        );
+        if(count($discountProductDependencies) !== 0){
+            $found = false;
+            foreach($discountProductDependencies as $dependency){
+                foreach($productIds as $pid){
+                    if($pid == $dependency->dependency_id){
+                        $found = true;
+                    }
+                }
+            }
+            if(!$found){
+                $responseObject->allowed = false;
+                $responseObject->discountPrice = 0;
+                $responseObject->type = '';
+                $responseObject->message = "discount needs a product in your cart";
+                $responseObject->umessage = "کد تخفیف با وجود یک محصول خاص در سبد خرید فعال میشود";
+                return $responseObject;
+            }
+        }
+        $discountCategoryDependencies = DB::select(
+            "SELECT * 
+            FROM discount_dependencies 
+            WHERE discount_id = $discount->id AND dependency_type = 'category'"
+        );
+        if(count($discountCategoryDependencies) !== 0){
+            $found = false;
+            foreach($discountCategoryDependencies as $dependency){
+                foreach($categoryIds as $cid){
+                    if($cid == $dependency->dependency_id){
+                        $found = true;
+                    }
+                }
+            }
+            if(!$found){
+                $responseObject->allowed = false;
+                $responseObject->discountPrice = 0;
+                $responseObject->type = '';
+                $responseObject->message = "discount needs a product from specific category in your cart";
+                $responseObject->umessage = "کد تخفیف با وجود یک محصول از یک دسته‌بندی خاص در سبد خرید فعال میشود";
+                return $responseObject;
+            }
+        }
+        $discountUserDependencies = DB::select(
+            "SELECT *
+            FROM discount_dependencies
+            WHERE discount_id = $discount->id AND dependency_type = 'user'"
+        );
+        if(count($discountUserDependencies) !== 0){
+            $found = false;
+            foreach($discountUserDependencies as $dependency){
+                if($dependency->dependency_id == $userId){
+                    $found = true;
+                }
+            }
+            if(!$found){
+                $responseObject->allowed = false;
+                $responseObject->discountPrice = 0;
+                $responseObject->type = '';
+                $responseObject->message = "discount is not for this user";
+                $responseObject->umessage = "این کد تخفیف برای شما فعال نیست";
+                return $responseObject;
+            }
+        }
+        $discountPrice = 0;
+        if($discount->type == 'order'){
+            if($discount->price !== NULL){
+                $discountPrice = $discount->price;
+            }else if($discount->percent !== NULL){
+                $dp = $discount->percent * $cartPrice;
+                //$dp = floor($dp / 100) * $dp;
+                $dp -= $dp % 50;
+                if($dp > $discount->max_price){
+                    $dp = $discount->max_price;
+                }
+                $discountPrice = $dp;
+                echo $dp . " / ";
+            }
+            if($discountPrice > $cartPrice){
+                echo $cartPrice;
+                $discountPrice = $cartPrice;
+            }
+            $responseObject->allowed = true;
+            $responseObject->discountPrice = $discountPrice;
+            $responseObject->type = 'order';
+            $responseObject->message = "user is allowed to use this discount";
+            $responseObject->umessage = "کد تخفیف با موفقیت ثبت شد";
+            return $responseObject;
+        }else if($discount->type == 'shipping'){
+            if($discount->price !== NULL){
+                if($discount->price < $discount->max_price){
+                    $discountPrice = $discount->price;
+                }else{
+                    $discountPrice = $discount->max_price;
+                }
+            }else if($discount->percent !== NULL){
+                $dp = $discount->percent * $shippingPrice;
+                $dp = floor($dp / 100) * $dp;
+                if($dp > $discount->max_price){
+                    $dp = $discount->max_price;
+                }
+                $discountPrice = $dp;
+            }
+            if($discountPrice > $shippingPrice){
+                $discountPrice = $shippingPrice;
+            }
+            $responseObject->allowed = true;
+            $responseObject->discountPrice = $discountPrice;
+            $responseObject->type = 'shipping';
+            $responseObject->message = "user is allowed to use this discount";
+            $responseObject->umessage = "کد تخفیف با موفقیت ثبت شد";
+            return $responseObject;
+        }
+    }
+
+    public static function calculateSpecialProductsDiscount($products, $userId, $provinceId){
+        $time = time();
+        $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type IN ('product', 'category') AND D.code IS NULL 
+            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL 
+            AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+        if(count($discounts) !== 0){
+            $rps = array();
+            foreach($products as $product){
+                array_push($rps, 0);
+            }
+            foreach($discounts as $discount){
+                $discountUsers = DB::select("SELECT DD.dependency_id AS user_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'user'");
+                $discountProvinces = DB::select("SELECT DD.dependency_id AS province_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'province'");
+                $discountProducts = DB::select("SELECT DD.dependency_id AS product_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'product'");
+                $discountCategories =  DB::select("SELECT DD.dependency_id AS category_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'category'");
+                $i = 0;
+                foreach($products as $product){
+                    if($discount->min_price === null || $discount->min_price <= $product->productPrice){
+                        $inputProductObject1 = new stdClass();
+                        $inputCategoryObject1 = new stdClass();
+                        $inputUserObject1 = new stdClass();
+                        $inputProvinceObject1 = new stdClass();
+                        $inputProductObject1->product_id = $product->productId;
+                        $inputCategoryObject1->category_id = $product->categoryId;
+                        $inputUserObject1->user_id = $userId;
+                        $inputProvinceObject1->province_id = $provinceId;
+                        if(($discount->type === 'product' && (count($discountProducts) === 0 || in_array($inputProductObject1, $discountProducts))) ||
+                            ($discount->type === 'category' && (count($discountCategories) === 0 || in_array($inputCategoryObject1, $discountCategories)))){
+                            if(count($discountUsers) === 0 || in_array($inputUserObject1, $discountUsers)){
+                                $continute = true;
+                                if($discount->neworder === 1){
+                                    $userPreviousOrders = DB::select(
+                                        "SELECT id 
+                                        FROM orders 
+                                        WHERE user_id = $userId"
+                                    );
+                                    if(count($userPreviousOrders) !== 0){
+                                        $continute = false;
+                                    }
+                                }
+                                if($discount->reusable === 0){
+                                    $thisDiscountLogsForTheUser = DB::select(
+                                        "SELECT id
+                                        FROM discount_logs 
+                                        WHERE user_id = $userId"
+                                    );
+                                    if(count($thisDiscountLogsForTheUser) !== 0){
+                                        $continute = false;
+                                    }
+                                }
+                                if($continute && (count($discountProvinces) === 0 || in_array($inputProvinceObject1, $discountProvinces))){
+                                    $rp = 0;
+                                    if($discount->price !== null){
+                                        $rp += $discount->price;
+                                    }
+                                    if($discount->percent !== null){
+                                        $rp = ($discount->percent / 100) * $product->productPrice;
+                                    }
+                                    if($discount->max_price !== null && $rp > $discount->max_price){
+                                        $rp = $discount->max_price;
+                                    }
+                                    $rps[$i] += $rp;
+                                }
+                            }
+                        }
+                    }
+                    $i++;
+                }
+            }
+            $i = 0;
+            foreach($products as $product){
+                if($rps[$i] !== 0){
+                    if($rps[$i] < $products[$i]->productPrice){
+                        $products[$i]->discountedPrice = $products[$i]->productPrice - (100 * (integer)(($rps[$i]) / 100));
+                        $products[$i]->discountPercent = (integer)(($rps[$i]/$products[$i]->productPrice) * 100);
+                    }else{
+                        $products[$i]->discountedPrice = 0;
+                        $products[$i]->discountPercent = 100;
+                    }
+                }else{
+                    $products[$i]->discountedPrice = $products[$i]->productPrice;
+                    $products[$i]->discountPercent = 0;
+                }
+                $i++;
+            }
+            return $products;
+        }else{
+            foreach($products as $product){
+                $product->discountedPrice = $product->productPrice;
+                $product->discountPercent = 0;
+            }
+            return $products;
+        }
+    }
+
+    public static function calculateSpecialOrderAndShippingDiscount($products, $userId, $provinceId, $cityId, $totalWeight){
+        $time = time();
+        $orderDiscountPrice = 0;
+        $shippingDiscountPrice = 0;
+        $totalOrderPrice = 0;
+        $totalShippingPrice = 0;
+        foreach($products as $p){
+            $totalOrderPrice += ($p->productCount * $p->productPrice);
+        }
+        $temp = DB::select(
+            "SELECT * 
+            FROM delivery_service_temporary_information 
+            WHERE user_id = $userId AND expiration_date >= $time LIMIT 1"
+        );
+        if(count($temp) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'selected user delivery service not found', 'umessage' => 'سرویس حمل و نقل انتخابی کاربر یافت نشد'));
+            exit();
+        }
+        $temp = $temp[0];
+        $serviceId = $temp->service_id;
+        if($serviceId === 1){
+            $totalShippingPrice = 12000;
+        }else if($serviceId === 2){
+            $totalShippingPrice = 15000;
+        }else if($serviceId === 3){
+            $pricePlans = DB::select("SELECT * FROM delivery_service_plans WHERE city_id = $cityId OR province_id = $provinceId ORDER BY min_weight ASC");
+            if(count($pricePlans) == 0){
+                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not find delivery price', 'umessage' => 'خطا هنگام محاسبه هزینه ارسال'));
+                exit();
+            }
+            $found = false;
+            foreach($pricePlans as $pp){
+                if($pp->min_weight <= $totalWeight && $totalWeight < $pp->max_weight){
+                    $found = true;
+                    $totalShippingPrice = $pp->price;
+                    break;
+                }
+            }
+            if($found === false){
+                $lastPricePlan = DB::select("SELECT * FROM delivery_service_plans WHERE city_id = $cityId OR province_id = $provinceId ORDER BY max_weight DESC LIMIT 1");
+                if(count($lastPricePlan) == 0){
+                    echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could nto find delivery price', 'umessage' => 'خطا هنگام محاسبه هزینه ارسال'));
+                    exit();
+                }
+                $lastPricePlan = $lastPricePlan[0];
+                $price = $lastPricePlan->price;
+                for($w1 = $lastPricePlan->max_weight, $w2 = $lastPricePlan->max_weight + 1000; $w1 < $w2 ;$w1 += 1000, $w2 += 1000){
+                    $price += 2500;
+                    if($w1 <= $totalWeight && $totalWeight < $w2){
+                        $totalShippingPrice= $price;
+                        break;
+                    }
+                }
+            }
+        }
+        $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type IN ('order', 'shipping') AND D.code IS NULL 
+            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL 
+            AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+        if(count($discounts) !== 0){
+            $rps = array();
+            foreach($products as $product){
+                array_push($rps, 0);
+            }
+            foreach($discounts as $discount){
+                $discountUsers = DB::select("SELECT DD.dependency_id AS user_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'user'");
+                $discountProvinces = DB::select("SELECT DD.dependency_id AS province_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'province'");
+                $discountProducts = DB::select("SELECT DD.dependency_id AS product_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'product'");
+                $discountCategories =  DB::select("SELECT DD.dependency_id AS category_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'category'");
+                $i = 0;
+                if($discount->type == 'order'){
+                    if($discount->min_price === NULL || $discount->min_price <= $totalOrderPrice){
+                        foreach($products as $product){
+                            $inputProductObject1 = new stdClass();
+                            $inputCategoryObject1 = new stdClass();
+                            $inputUserObject1 = new stdClass();
+                            $inputProvinceObject1 = new stdClass(); 
+                            $inputProductObject1->product_id = $product->productId;
+                            $inputCategoryObject1->category_id = $product->categoryId;
+                            $inputUserObject1->user_id = $userId;
+                            $inputProvinceObject1->province_id = $provinceId;
+                            if((count($discountProducts) === 0 || in_array($inputProductObject1, $discountProducts))
+                                && (count($discountCategories) === 0 || in_array($inputCategoryObject1, $discountCategories))
+                                && (count($discountProvinces) === 0 || in_array($inputProvinceObject1, $discountProvinces))
+                                && (count($discountUsers) === 0 || in_array($inputUserObject1, $discountUsers))){
+                                $continute = true;
+                                if($discount->neworder === 1){
+                                    $userPreviousOrders = DB::select(
+                                        "SELECT id 
+                                        FROM orders 
+                                        WHERE user_id = $userId"
+                                    );
+                                    if(count($userPreviousOrders) !== 0){
+                                        $continute = false;
+                                    }
+                                }
+                                if($discount->reusable === 0){
+                                    $thisDiscountLogsForTheUser = DB::select(
+                                        "SELECT id
+                                        FROM discount_logs 
+                                        WHERE user_id = $userId"
+                                    );
+                                    if(count($thisDiscountLogsForTheUser) !== 0){
+                                        $continute = false;
+                                    }
+                                }
+                                if($continute){
+                                    $rp = 0;
+                                    if($discount->price !== null){
+                                        $rp += $discount->price;
+                                    }
+                                    if($discount->percent !== null){
+                                        $rp = ($discount->percent / 100) * $totalOrderPrice;
+                                    }
+                                    if($discount->max_price !== null && $rp > $discount->max_price){
+                                        $rp = $discount->max_price;
+                                    }
+                                    $orderDiscountPrice += $rp;
+                                }
+                            }
+                        }
+                    }
+                    
+                }else if($discount->type == 'shipping'){
+                    if($discount->min_price === NULL || $discount->min_price <= $totalShippingPrice){
+                        foreach($products as $product){
+                            $inputProductObject1 = new stdClass();
+                            $inputCategoryObject1 = new stdClass();
+                            $inputUserObject1 = new stdClass();
+                            $inputProvinceObject1 = new stdClass(); 
+                            $inputProductObject1->product_id = $product->productId;
+                            $inputCategoryObject1->category_id = $product->categoryId;
+                            $inputUserObject1->user_id = $userId;
+                            $inputProvinceObject1->province_id = $provinceId;
+                            if((count($discountProducts) === 0 || in_array($inputProductObject1, $discountProducts))
+                                && (count($discountCategories) === 0 || in_array($inputCategoryObject1, $discountCategories))
+                                && (count($discountProvinces) === 0 || in_array($inputProvinceObject1, $discountProvinces))
+                                && (count($discountUsers) === 0 || in_array($inputUserObject1, $discountUsers))){
+                                $continute = true;
+                                if($discount->neworder === 1){
+                                    $userPreviousOrders = DB::select(
+                                        "SELECT id 
+                                        FROM orders 
+                                        WHERE user_id = $userId"
+                                    );
+                                    if(count($userPreviousOrders) !== 0){
+                                        $continute = false;
+                                    }
+                                }
+                                if($discount->reusable === 0){
+                                    $thisDiscountLogsForTheUser = DB::select(
+                                        "SELECT id
+                                        FROM discount_logs 
+                                        WHERE user_id = $userId"
+                                    );
+                                    if(count($thisDiscountLogsForTheUser) !== 0){
+                                        $continute = false;
+                                    }
+                                }
+                                if($continute){
+                                    $rp = 0;
+                                    if($discount->price !== null){
+                                        $rp += $discount->price;
+                                    }
+                                    if($discount->percent !== null){
+                                        $rp = ($discount->percent / 100) * $totalShippingPrice;
+                                    }
+                                    if($discount->max_price !== null && $rp > $discount->max_price){
+                                        $rp = $discount->max_price;
+                                    }
+                                    $shippingDiscountPrice += $rp;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            $orderDiscountPrice -= $orderDiscountPrice % 50;
+            $shippingDiscountPrice -= $shippingDiscountPrice % 50;
+            if($shippingDiscountPrice > $totalShippingPrice){
+                $shippingDiscountPrice = $totalShippingPrice;
+            }
+            if($orderDiscountPrice > $totalOrderPrice){
+                $orderDiscountPrice = $totalOrderPrice;
+            }
+            $result = new stdClass();
+            $result->orderPrice = $totalOrderPrice;
+            $result->orderDiscount = $orderDiscountPrice;
+            $result->shippingPrice = $totalShippingPrice;
+            $result->shippingDiscount = $shippingDiscountPrice;
+            return $result;
+        }else{
+            foreach($products as $product){
+                $product->discountedPrice = $product->productPrice;
+                $product->discountPercent = 0;
+            }
+            return $products;
+        }
+    }
+
+    public static function totalDiscount($products, $user, $provinceId){
+        $time = time();
+        $orderDiscountPrice = 0;
+        $shippingDiscountPrice = 0;
+        $totalOrderPrice = 0;
+        $totalShippingPrice = 0;
+        $totalWeight = 0;
+        $discountedProducts = [];
+        foreach($products as $p){
+            array_push($discountedProducts, 0);
+            $totalOrderPrice += ($p->productCount * $p->productPrice);
+            $totalWeight += $p->productWeight;
+        }
+        $temp = DB::select(
+            "SELECT * 
+            FROM delivery_service_temporary_information 
+            WHERE user_id = $user->id AND expiration_date >= $time LIMIT 1"
+        );
+        if(count($temp) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'selected user delivery service not found', 'umessage' => 'سرویس حمل و نقل انتخابی کاربر یافت نشد'));
+            return NULL;
+        }
+        $temp = $temp[0];
+        $serviceId = $temp->service_id;
+        $totalShippingPrice = ShippingCalculator::shippingPriceCalculator($user, $totalWeight, $serviceId);
+        $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.code IS NULL 
+            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND (D.start_date IS NULL OR D.start_date <= $time) AND (D.finish_date IS NULL OR D.finish_date >= $time)  
+            AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+        if(count($discounts) !== 0){
+            $rps = array();
+            foreach($products as $product){
+                array_push($rps, 0);
+            }
+            foreach($discounts as $discount){
+                $discountUsers = DB::select("SELECT DD.dependency_id AS user_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'user'");
+                $discountProvinces = DB::select("SELECT DD.dependency_id AS province_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'province'");
+                $discountProducts = DB::select("SELECT DD.dependency_id AS product_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'product'");
+                $discountCategories =  DB::select("SELECT DD.dependency_id AS category_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'category'");
+                $inputProductObject1 = new stdClass();
+                $inputCategoryObject1 = new stdClass();
+                $inputUserObject1 = new stdClass();
+                $inputProvinceObject1 = new stdClass();
+                $inputUserObject1->user_id = $user->id;
+                $inputProvinceObject1->province_id = $provinceId;
+                $allow = false;
+                if((count($discountUsers) === 0 || in_array($inputUserObject1, $discountUsers)) 
+                    && (count($discountProvinces) === 0 || in_array($inputProvinceObject1, $discountProvinces))){
+                        $allow = true;
+                    }
+                if($allow && $discount->neworder !== 0){
+                    $userPreviousOrders = DB::select(
+                        "SELECT id FROM orders WHERE user_id = $user->id LIMIT 1"
+                    );
+                    if(count($userPreviousOrders) !== 0){
+                        $allow = false;
+                    }
+                }
+                if($allow && $discount->reusable === 0){
+                    $discountUsageLogsForUser = DB::select(
+                        "SELECT id FROM discount_logs WHERE user_id = $user->id AND discount_id = $discount->id LIMIT 1"
+                    );
+                    if(count($discountUsageLogsForUser) !== 0){
+                        $allow = false;
+                    }
+                }
+                if(!$allow){
+                    continue;
+                }
+                if($discount->type === 'product'){
+                    if(count($discountProducts) !== 0){
+                        foreach($products as $product){
+                            $inputProductObject1->product_id = $product->productId;
+                            for($i = 0; $i<sizeof($discountProducts); $i++){
+                                if(in_array($inputProductObject1, $discountProducts)){
+                                    if($discount->min_price === NULL || ($discount->min_price !== NULL && $discount->min_price <= $product->productPrice)){
+                                        if($discount->price !== NULL){
+                                            $discountedProducts[$i] += $discount->price;
+                                        }else if($discount->percent !== NULL){
+                                            $r = ($discount->percent / 100) * $product->productPrice;
+                                            if($discount->max_price !== NULL && $r > $discount->max_price){
+                                                $r = $discount->max_price;
+                                            }
+                                            $discountedProducts[$i] += $r;
+                                        }   
+                                    }
+                                }
+                            }
+                        }
+                    }else{
+                        for($i=0; $i<sizeof($discountProducts); $i++){
+                            if($discount->min_price === NULL || ($discount->min_price !== NULL && $discount->min_price <= $products[$i]->productPrice)){
+                                if($discount->price !== NULL){
+                                    $discountedProducts[$i] += $discount->price;
+                                }else if($discount->percent !== NULL){
+                                    $r = ($discount->percent / 100) * $products[$i]->productPrice;
+                                    if($discount->max_price !== NULL && $r > $discount->max_price){
+                                        $r = $discount->max_price;
+                                    }
+                                    $discountedProducts[$i] += $r;
+                                }
+                            }
+                        }
+                    }
+                }else if($discount->type === 'category'){
+                    if(count($discountCategories) !== 0){
+                        foreach($products as $product){
+                            $inputCategoryObject1->category_id = $product->categoryId;
+                            for($i = 0; $i<sizeof($discountProducts); $i++){
+                                if(in_array($inputCategoryObject1, $discountCategories)){
+                                    if($discount->min_price === NULL || ($discount->min_price !== NULL && $discount->min_price <= $product->productPrice)){
+                                        if($discount->price !== NULL){
+                                            $discountedProducts[$i] += $discount->price;
+                                        }else if($discount->percent !== NULL){
+                                            $r = ($discount->percent / 100) * $product->productPrice;
+                                            if($discount->max_price !== NULL && $r > $discount->max_price){
+                                                $r = $discount->max_price;
+                                            }
+                                            $discountedProducts[$i] += $r;
+                                        }   
+                                    }
+                                }
+                            }
+                        }
+                    }else{
+                        for($i=0; $i<sizeof($discountProducts); $i++){
+                            if($discount->min_price === NULL || ($discount->min_price !== NULL && $discount->min_price <= $products[$i]->productPrice)){
+                                if($discount->price !== NULL){
+                                    $discountedProducts[$i] += $discount->price;
+                                }else if($discount->percent !== NULL){
+                                    $r = ($discount->percent / 100) * $products[$i]->productPrice;
+                                    if($discount->max_price !== NULL && $r > $discount->max_price){
+                                        $r = $discount->max_price;
+                                    }
+                                    $discountedProducts[$i] += $r;
+                                }
+                            }
+                        }
+                    }
+                }else if($discount->type === 'order'){
+                    $productPermission = true;
+                    $categoryPermission = true;
+                    if(count($discountProducts) !== 0){
+                        $found = false;
+                        foreach($products as $product){
+                            $inputProductObject1->product_id = $product->productId;
+                            if(in_array($inputProductObject1, $discountProducts)){
+                                $found = true;
+                                break;
+                            }
+                        }
+                        $productPermission = $found;
+                    }
+                    if(count($discountCategories) !== 0){
+                        $found = false;
+                        foreach($products as $product){
+                            $inputCategoryObject1->category_id = $product->categoryId;
+                            if(in_array($inputCategoryObject1, $discountCategories)){
+                                $found = true;
+                                break;
+                            }
+                        }
+                        $categoryPermission = $found;
+                    }
+                    if($productPermission && $categoryPermission){
+                        if($discount->min_price === NULL | ($discount->min_price !== NULL && $discount->min_price <= $totalOrderPrice)){
+                            if($discount->price !== NULL){
+                                $orderDiscountPrice += $discount->price;
+                            }else if($discount->percent !== NULL){
+                                $r = ($discount->percent / 100) * $totalOrderPrice;
+                                if($discount->max_price !== NULL && $discount->max_price < $r){
+                                    $r = $discount->max_price;
+                                }
+                                $orderDiscountPrice += $r;
+                            }
+                        }
+                    }
+                }else if($discount->type === 'shipping'){
+                    $productPermission = true;
+                    $categoryPermission = true;
+                    if(count($discountProducts) !== 0){
+                        $found = false;
+                        foreach($products as $product){
+                            $inputProductObject1->product_id = $product->productId;
+                            if(in_array($inputProductObject1, $discountProducts)){
+                                $found = true;
+                                break;
+                            }
+                        }
+                        $productPermission = $found;
+                    }
+                    if(count($discountCategories) !== 0){
+                        $found = false;
+                        foreach($products as $product){
+                            $inputCategoryObject1->category_id = $product->categoryId;
+                            if(in_array($inputCategoryObject1, $discountCategories)){
+                                $found = true;
+                                break;
+                            }
+                        }
+                        $categoryPermission = $found;
+                    }
+                    if($productPermission && $categoryPermission){
+                        if($discount->min_price === NULL | ($discount->min_price !== NULL && $discount->min_price <= $totalShippingPrice)){
+                            if($discount->price !== NULL){
+                                $shippingDiscountPrice += $discount->price;
+                            }else if($discount->percent !== NULL){
+                                $r = ($discount->percent / 100) * $totalShippingPrice;
+                                if($discount->max_price !== NULL && $discount->max_price < $r){
+                                    $r = $discount->max_price;
+                                }
+                                $shippingDiscountPrice += $r;
+                            }
+                        }
+                    }
+                } 
+            }
+            for($i=0; $i < sizeof($discountedProducts); $i++){
+                $dp = $discountedProducts[$i] - $discountedProducts[$i] % 50;
+                if($dp >= $products[$i]->productPrice){
+                    $products[$i]->discountedPrice = 0;
+                    $products[$i]->discountPercent = 100;
+                    $dp = $products[$i]->productPrice;
+                }else{
+                    $products[$i]->discountedPrice = $products[$i]->productPrice - $dp;
+                    $products[$i]->discountPercent = ceil(($dp / $products[$i]->productPrice) * 100);
+                }
+                $orderDiscountPrice += $dp;                
+            }
+            if($orderDiscountPrice < $totalOrderPrice){
+                $orderDiscountedPrice = $totalOrderPrice - $orderDiscountPrice;
+            }else{
+                $orderDiscountedPrice = 0;
+            }
+            if($shippingDiscountPrice < $totalShippingPrice){
+                $shippingDiscountedPrice = $totalShippingPrice - $shippingDiscountPrice;
+            }else{
+                $shippingDiscountedPrice = 0;
+            }
+            $responseObject = new stdClass();
+            $responseObject->cart = $products;
+            $responseObject->orderPrice = $totalOrderPrice;
+            $responseObject->shippingPrice = $totalShippingPrice;
+            $responseObject->orderDiscountedPrice = $orderDiscountedPrice;
+            $responseObject->shippingDiscountedPrice = $shippingDiscountedPrice;
+            return $responseObject;
+        }else{
+            foreach($products as $product){
+                $product->discountedPrice = $product->productPrice;
+                $product->discountPercent = 0;
+            }
+            $responseObject = new stdClass();
+            $responseObject->cart = $products;
+            $responseObject->orderPrice = $totalOrderPrice;
+            $responseObject->shippingPrice = $totalShippingPrice;
+            $responseObject->orderDiscountedPrice = $totalOrderPrice;
+            $responseObject->shippingDiscountedPrice = $totalShippingPrice;
+            return $responseObject;
+        }
     }
 }

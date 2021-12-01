@@ -167,7 +167,7 @@ class OrderController extends Controller
         echo json_encode(array('status' => 'done', 'found' => true, 'orderStatus' => $order->stat, 'paidPrice' => $paidPrice, 'orderItems' => $responseArray, 'message' => 'order items successfully found'));
     }
 
-    //@route: /api/user-orders-history <--> @middleware: getUserOrderHistory
+    // @route: /api/user-order-details <--> @middleware: UserAuthenticationMiddleware
     public function getUserOrdersHistory(Request $request){
         $userId = $request->userId;
         $user = DB::select("SELECT * FROM users WHERE id = $userId");

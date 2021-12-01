@@ -186,12 +186,6 @@ class DeliveryServiceController extends Controller
         echo json_encode(array('status' => 'done', 'message' => 'delivery options successfully found', 'options' => $deliveryOptions));
     }
 
-    public function deliveryTimeOptions(Request $request){
-        $now = time();
-        $a = jdate('w',$now);
-        var_dump($a);
-    }
-
     public function checkLocationForTehranPeyk($lat, $lon){
         $locations = [[35.7398594,51.6230822],[35.7401032,51.6225243],[35.7463729,51.598835],[35.7526422,51.5966034],[35.7573786,51.5849304],
             [35.7664328,51.5873337],[35.78231,51.5366936],[35.7919531,51.530664],[35.7933107,51.5385818],[35.8027784,51.537466],[35.8164908,51.5341187],
@@ -374,10 +368,16 @@ class DeliveryServiceController extends Controller
         $availableSelectedService = DB::select(
             "SELECT * 
             FROM delivery_service_temporary_information
-            WHERE user_id = $userId AND expiraton_date > $currentTime"
+            WHERE user_id = $userId AND expiration_date > $currentTime
+            ORDER BY expiration_date DESC LIMIT 1"
         );
         if(count($availableSelectedService) === 0){
             echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'user have not chosen a delivery service recently'));
+            exit();
+        }
+        $availableSelectedService = $availableSelectedService[0];
+        if(($availableSelectedService->service_id == 1 ||$availableSelectedService->service_id == 2) && $availableSelectedService->work_time == 0){
+            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'user have not chosen a work time for the selected delivery service'));
             exit();
         }
         echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'user have chosen a delivery service recently'));

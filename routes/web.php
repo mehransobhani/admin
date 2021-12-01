@@ -139,23 +139,3 @@ Route::get('/check-test', function(){
         exit();
     }
 });
-
-Route::get('aaa', function(){
-    
-});
-
-Route::get('bbb', function() {
-    $currentTime = time();
-    $currentYear = intval(jdate('o', $currentTime, '', '', 'en'));
-    $currentMonth = intval(jdate('n', $currentTime, '', '', 'en'));
-    $currentDay = intval(jdate('j', $currentTime, '', '', 'en'));
-    $currentDay = floor($currentDay / 7);
-    //echo $currentDay . " /// ";
-    $currentHour = intval(jdate('G', $currentTime ,'', '', 'en'));
-    $currentMinute = intval(jdate('i', $currentTime, '', '', 'en'));
-    $currentSecond = intval(jdate('s', $currentTime, '', '', 'en'));
-    //echo "year : " . $currentYear . " Month : " . $currentMonth . " Day : " . $currentDay . " Hour : " . $currentHour . " Minute : " . $currentMinute . " Second : " . $currentSecond;
-    $firstdayOfWeek = jmktime(0, 0, 0, $currentMonth, $currentDay, $currentYear);
-    echo $firstdayOfWeek;
-    
-});
