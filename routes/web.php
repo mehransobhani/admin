@@ -1,5 +1,6 @@
 <?php
 
+use App\Classes\payment\pasargad\RSAKeyType;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\TestingController;
 use App\Models\User;
@@ -7,6 +8,7 @@ use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use App\Classes\payment\pasargad\RSAProcessor;
 
 /*
 |--------------------------------------------------------------------------
@@ -138,4 +140,117 @@ Route::get('/check-test', function(){
         echo json_encode(array('status' => 'failed', 'message' => 'day not found'));
         exit();
     }
+});
+
+Route::get('/sign', function(){
+    include('../app/Classes/payment/pasargad/RSAProcessor.php');
+    $privateKey = '<RSAKeyValue><Modulus>u9QiaSVNXNcO2Ist3TJOPLKhNsV84FVNByhctGGWDpUhwrTx7x1gc+HM8PCnDTXHpmPzo08yQNqt0gjFPHjo1zitu4DIWilOmYeMNXRYYpn5mmZiBlCIkw7z7mc0kPoVLAdExk6FU0R8q8cy5xREbJpEfvLm+aj5Y+BtfPLokm0=</Modulus><Exponent>AQAB</Exponent><P>6iKdX28GXw5KjbthcCwnX9+NvFJuZ1Nn4uLUEAw0j/3eM3Zp5Fg97FJILBoXlU8pPQKj8h+YESD6UBp1eqHDQw==</P><Q>zV58S6HN/IVgDFxG72o13a57gpTBOV+KEFF88R8s5+mhDyLzD4s8Vf/IJfV3xcJeOckKMleMAYE9JlKYnTmAjw==</Q><DP>xZsRV0pNBkz5f0V2p0Wctb3n0dmAdJRgSY1HjYO/mQeaUbTPCnmvSZTodNBQtyNomqVv2RnxLgO3P4QVQrrkIQ==</DP><DQ>eZHEDFV1BVXCvK5nQ1RhHKAr9umt1BOtO+mxB19ICuSu9bHfpkTq65GlXmsHgqaDdrt+cLyIYV+q3iOoufGPGw==</DQ><InverseQ>ElTK3vHaTTYISddW9YQPOZlEWB7A/Xn3oV+y5SDPg3vAOegmhNGrE9qekJB1XaIgqCLTU6A71NXLhDOBrDHNcw==</InverseQ><D>jEsT9MN2+Gxt21KBzGFBzNaD0fxKnOk54qnELLtjMLs1f1BWEQs5OvUidajareRInsCzf3ytBYIRKPuCDvwktSyJ4MtYC+oxwTq9vo8NqKFyevYpK2gkwfSO+Ar5u3GZmh1ABy46C3QxzPH+lwxutnX7TMOVBs0HidYXQrX9R4U=</D></RSAKeyValue>';
+    $pk = '<RSAKeyValue><Modulus>u9QiaSVNXNcO2Ist3TJOPLKhNsV84FVNByhctGGWDpUhwrTx7x1gc+HM8PCnDTXHpmPzo08yQNqt0gjFPHjo1zitu4DIWilOmYeMNXRYYpn5mmZiBlCIkw7z7mc0kPoVLAdExk6FU0R8q8cy5xREbJpEfvLm+aj5Y+BtfPLokm0=</Modulus><Exponent>AQAB</Exponent><P>6iKdX28GXw5KjbthcCwnX9+NvFJuZ1Nn4uLUEAw0j/3eM3Zp5Fg97FJILBoXlU8pPQKj8h+YESD6UBp1eqHDQw==</P><Q>zV58S6HN/IVgDFxG72o13a57gpTBOV+KEFF88R8s5+mhDyLzD4s8Vf/IJfV3xcJeOckKMleMAYE9JlKYnTmAjw==</Q><DP>xZsRV0pNBkz5f0V2p0Wctb3n0dmAdJRgSY1HjYO/mQeaUbTPCnmvSZTodNBQtyNomqVv2RnxLgO3P4QVQrrkIQ==</DP><DQ>eZHEDFV1BVXCvK5nQ1RhHKAr9umt1BOtO+mxB19ICuSu9bHfpkTq65GlXmsHgqaDdrt+cLyIYV+q3iOoufGPGw==</DQ><InverseQ>ElTK3vHaTTYISddW9YQPOZlEWB7A/Xn3oV+y5SDPg3vAOegmhNGrE9qekJB1XaIgqCLTU6A71NXLhDOBrDHNcw==</InverseQ><D>jEsT9MN2+Gxt21KBzGFBzNaD0fxKnOk54qnELLtjMLs1f1BWEQs5OvUidajareRInsCzf3ytBYIRKPuCDvwktSyJ4MtYC+oxwTq9vo8NqKFyevYpK2gkwfSO+Ar5u3GZmh1ABy46C3QxzPH+lwxutnX7TMOVBs0HidYXQrX9R4U=</D></RSAKeyValue>';
+    /*$ContentType = 'Application/json';
+    $MerchantCode = '4483845';
+    $TerminalCode = '1664157';
+    $InvoiceNumber= '13';
+    $InvoiceDate = date('Y/m/d H:i:s');
+    $Amount = 10000;
+    $RedirectAddress = "https://honari.com";
+    $TimeStamp = date('Y/m/d H:i:s');
+    $Action = 1003;*/
+
+
+
+    $time = time();
+    $a = [
+        'InvoiceNumber' => '16',
+        'InvoiceDate' => date('Y/m/d H:i:s', $time),
+        'TerminalCode' => 1664157, 
+        'MerchantCode' => 4483845, 
+        'Amount' => 10000,
+        'RedirectAddress' => 'https://hoanri.com/bank-result',
+        'Timestamp' => date('Y/m/d H:i:s', $time),
+        'Action' => 1003
+    ];
+    $parameters = [
+        'InvoiceNumber' => '15',
+        'InvoiceDate' => date('Y/m/d H:i:s'),
+        'TerminalCode' => 1664157,
+        'MerchantCode' => 4483845,
+        'Amount' => 10000,
+        'RedirectAddress' => 'https://hoanri.com/bank-result',
+        'Timestamp' => date('Y/m/d H:i:s'),
+        'Action' => 1003,
+    ];
+    echo $parameters['Timestamp'];
+    $oldParameters = [
+        'MerchantCode' => 4483845,
+        'TerminalCode' => 1664157, 
+        'InvoiceNumber' => '15',
+        'InvoiceDate' => date('Y/m/d H:i:s', $time),
+        'Amount' => 10000,
+        'RedirectAddress' => 'https://hoanri.com/bank-result',
+        'Action' => 1003,
+        'Timestamp' => date('Y/m/d H:i:s', $time),
+    ];
+    /*$signString = json_encode($parameters, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $RSAProcessor = new RSAProcessor($privateKey, 1);
+    //$data = "#" . 4483845 . "#" . 1664157 . "#" . 15 . "#" . date('Y/m/d H:i:s', $time) . "#" . 1000 . "#" . 'https://hoanri.com/get' . "#" . 1003 . "#" . date('Y/m/d H:i:s', $time) . "#";
+    $data = sha1($signString, true);
+    $data = $RSAProcessor->sign($data);
+    $sign = base64_encode($data);
+    */
+    $jsonData = json_encode($parameters, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+
+    $data = $jsonData;
+    $processor = new RSAProcessor($pk, RSAKeyType::XMLString);
+    $data = sha1($data, true);
+    $data = $processor->sign($data);
+    $sign = base64_encode($data);
+
+    /*$ch = curl_init();
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/GetToken');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    $headers = [
+            'Content-Type: application/json',
+            'Sign: ' . $sign,
+            'Content-Length: ' . strlen($jsonData)
+    ];
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $response = curl_exec ($ch);
+    curl_close ($ch);
+    print_r($response);*/
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/GetToken');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Content-Type: application/json',
+    'Sign: ' . $sign,
+    'Content-Length: ' . strlen($jsonData)
+    ));
+    $response = curl_exec ($ch);
+    var_dump($response);
+    curl_close ($ch);
+});
+
+Route::get('/bank-result', function(){
+    $data = [
+        'transactionReferenceID' => '637744001835419255'
+    ];
+    $jsonData = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/CheckTransactionResult');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Content-Type: application/json',
+    //'Sign: ' . $sign,
+    'Content-Length: ' . strlen($jsonData)
+    ));
+    $response = curl_exec ($ch);
+    var_dump($response);
+    curl_close ($ch);
 });

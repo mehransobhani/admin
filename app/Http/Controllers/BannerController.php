@@ -7,6 +7,7 @@ use App\Models\Banner;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 class BannerController extends Controller
 {
@@ -67,5 +68,39 @@ class BannerController extends Controller
         }else{
             echo json_encode(array('sttatus' => 'failed', 'message'=> 'not enough parameter'));
         }
+    }
+
+    public function topThreeHomeBanners(Request $request){
+        $time = time();
+        $firstBanner = DB::select(
+            "SELECT img, anchor
+            FROM banners
+            WHERE isActive = 1 AND isBanner = 3 AND _order = 1 AND ((start_date = 0 AND end_date = 0) OR (start_date <= $time AND end_date >= $time))
+            ORDER BY date DESC 
+            LIMIT 1"
+        );
+        $secondBanner = DB::select(
+            "SELECT img, anchor
+            FROM banners
+            WHERE isActive = 1 AND isBanner = 3 AND _order = 2 AND ((start_date = 0 AND end_date = 0) OR (start_date <= $time AND end_date >= $time))
+            ORDER BY date DESC 
+            LIMIT 1"
+        );
+        $thirdBanner = DB::select(
+            "SELECT img, anchor
+            FROM banners
+            WHERE isActive = 1 AND isBanner = 3 AND _order = 5 AND ((start_date = 0 AND end_date = 0) OR (start_date <= $time AND end_date >= $time))
+            ORDER BY date DESC 
+            LIMIT 1"
+        );
+        if(count($firstBanner) === 0 || count($secondBanner) === 0 || count($thirdBanner) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'banner not found', 'umessage' => 'خطا در بارگزاری بنرها'));
+            exit();
+        }
+        $firstBanner = $firstBanner[0];
+        $secondBanner = $secondBanner[0];
+        $thirdBanner = $thirdBanner[0];
+        $banners = [$firstBanner, $secondBanner, $thirdBanner];
+        echo json_encode(array('status' => 'done', 'message' => 'banners successfully found', 'banners' => $banners));
     }
 }

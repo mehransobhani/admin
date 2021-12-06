@@ -30,10 +30,10 @@ class CartController extends Controller
         $cartProducts = [];
         foreach($userCart as $key => $value){
             $product = DB::select(
-                "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PP.status = 1 AND P.id = $key");
+                WHERE PP.status = 1 AND PP.id = $key");
             if(count($product) !== 0){
                 $product = $product[0];
                 $productStatus = -1;
@@ -42,6 +42,7 @@ class CartController extends Controller
                 }
                 $productObject = new stdClass();
                 $productObject->productId = $product->id;
+                $productObject->productPackId = $product->packId;
                 $productObject->productName = $product->prodName_fa;
                 $productObject->prodID = $product->prodID;
                 $productObject->categoryId = $product->category;
@@ -91,10 +92,10 @@ class CartController extends Controller
         $provinceId = $provinceId->id;
         foreach($userCart as $key => $value){
             $product = DB::select(
-                "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PP.status = 1 AND P.id = $key");
+                WHERE PP.status = 1 AND PP.id = $key");
             if(count($product) !== 0){
                 $product = $product[0];
                 $productStatus = -1;
@@ -103,6 +104,7 @@ class CartController extends Controller
                 }
                 $productObject = new stdClass();
                 $productObject->productId = $product->id;
+                $productObject->productPackId = $product->packId;
                 $productObject->productName = $product->prodName_fa;
                 $productObject->prodID = $product->prodID;
                 $productObject->categoryId = $product->category;
@@ -171,14 +173,15 @@ class CartController extends Controller
                 $item->productId = $key;
                 $item->count = $value->count;
                 $product = DB::select(
-                    "SELECT P.id, P.prodName_fa, P.prodStatus, P.prodID, P.prodPicture, P.stock AS prodStockPC.category, PP.label, PP.count, PP.base_price, PP.price, PP.stock, PP.status
+                    "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodStatus, P.prodID, P.prodPicture, P.stock AS prodStockPC.category, PP.label, PP.count, PP.base_price, PP.price, PP.stock, PP.status
                     FROM products P INNER JOIN products_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                    WHERE P.id = $key 
-                    LIMIT 1" 
+                    WHERE PP.id = $key 
+                    LIMIT 1"
                 );
                 $product = $product[0];
                 if(count($product) !== 0){
                     $item->productId = $product->id;
+                    $item->productPackId = $product->packId;
                     $item->poductName = $product->prodName_fa;
                     $item->packCount = $product->count;
                     $item->prodID = $product->prodID;
@@ -213,7 +216,7 @@ class CartController extends Controller
     public function addProductToCart(Request $request){
         $user = DB::select("SELECT * FROM users WHERE id = $request->userId LIMIT 1");
         $user = $user[0];
-        if(!isset($request->productId) || !isset($request->productCount)){
+        if(!isset($request->productPackId) || !isset($request->productCount)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'reason' => 'missingBody', 'message' => 'not enough parmeter'));
             exit();
         }
@@ -221,12 +224,12 @@ class CartController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'reason' => 'wrongBody', 'message' => 'wrong product count input number'));
             exit();
         }
-        $productId = $request->productId;
+        $productPackId = $request->productPackId;
         $productCount = $request->productCount;
         $product = DB::select(
             "SELECT P.prodStatus, P.stock AS productStock, PP.count, PP.stock, PP.status
             FROM products P INNER JOIN products_pack PP ON P.id = PP.product_id 
-            WHERE id = $productId 
+            WHERE PP.id = $productPackId 
             LIMIT 1"
         );
         if(count($product) == 0){
@@ -269,7 +272,7 @@ class CartController extends Controller
                 $productsArray = json_decode($currentUserCart->products);
                 $exists = false;
                 foreach($productsArray as $key => $value){
-                    if($key == $productId){
+                    if($key == $productPackId){
                         $exists = true;
                         break;
                     }
@@ -305,15 +308,15 @@ class CartController extends Controller
     //@route: /api/user-increase-cart-by-one <--> @middleware: ApiAuthenticationMiddleware
     public function increaseCartByOne(Request $request){
         $userId = $request->userId;
-        if(!isset($request->productId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c' ,'message' => 'not enough parameter', 'umessge' => 'ورودی کافی نیست'));
+        if(!isset($request->productPackId)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c' ,'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
         }
-        $productId = $request->productId;
+        $productPackId = $request->productPackId;
         $product = DB::select(
                         "SELECT P.prodStatus, P.stock AS productStock, PP.count, PP.stock, PP.status
                         FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id 
-                        WHERE P.id = $productId 
+                        WHERE PP.id = $productPackId AND PP.status = 1 AND P.prodStatus = 1
                         LIMIT 1"
         );
         if(count($product) == 0){
@@ -349,7 +352,7 @@ class CartController extends Controller
         $found = false;
         $newProductCount = 0;
         foreach($cartProducts as $key => $value){
-            if($key == $productId){
+            if($key == $productPackId){
                 if($value->count + 1 > $product->stock){
                     echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'it is the heighest number', 'umessage' => 'تعداد درخواستی بیشتر از مقدار موجود است'));
                     exit();
@@ -383,15 +386,15 @@ class CartController extends Controller
     //@route: /api/user-decrease-cart-by-one <--> @middleware: ApiAuthenticationMiddleware
     public function decreaseCartByOne(Request $request){
         $userId = $request->userId;
-        if(!isset($request->productId)){
+        if(!isset($request->productPackId)){
             echo json_encode(array('status' => 'failed', 'source' => 'c' ,'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نمیباشد'));
             exit();
         }
-        $productId = $request->productId;
+        $productPackId = $request->productPackId;
         $product = DB::select(
                         "SELECT P.prodStatus, P.stock AS productStock, PP.count, PP.stock, PP.status
                         FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id 
-                        WHERE P.id = $productId 
+                        WHERE PP.id = $productPackId AND PP.status = 1 AND P.prodStatus = 1
                         LIMIT 1"
         );
         if(count($product) == 0){
@@ -427,7 +430,7 @@ class CartController extends Controller
         $found = false;
         $newProductCount = 0;
         foreach($cartProducts as $key => $value){
-            if($key == $productId){
+            if($key == $productPackId){
                 if($value->count - 1 == 0){
                     echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'it is the lowest number', 'تعداد محصول در کمترین حالت است '));
                     exit();
@@ -461,11 +464,11 @@ class CartController extends Controller
     //@route: /api/user-remove-from-cart <--> @middleware: ApiAuthenticationMiddleware
     public function removeFromCart(Request $request){
         $userId = $request->userId;
-        if(!isset($request->productId)){
+        if(!isset($request->productPackId)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی اشتباه است'));
             exit();
         }
-        $productId = $request->productId;
+        $productPackId = $request->productPackId;
         $userCart = DB::select(
             "SELECT id, products 
             FROM shoppingCarts
@@ -482,7 +485,7 @@ class CartController extends Controller
         $found = false;
         $newProducts = new stdClass();
         foreach($cartProducts as $key => $value){
-            if($key == $productId){
+            if($key == $productPackId){
                 $found = true;
             }else{
                 $info = new stdClass();
@@ -543,10 +546,10 @@ class CartController extends Controller
         $cartProducts = [];
         foreach($cart as $cartItem){
             $product = DB::select(
-                "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PP.status = 1 AND P.id = $cartItem->id");
+                WHERE PP.status = 1 AND P.prodStatus = 1 AND PP.id = $cartItem->id");
             if(count($product) !== 0){
                 $product = $product[0];
                 $productStatus = -1;
@@ -555,6 +558,7 @@ class CartController extends Controller
                 }
                 $productObject = new stdClass();
                 $productObject->productId = $product->id;
+                $productObject->productPackId = $product->packId;
                 $productObject->productName = $product->prodName_fa;
                 $productObject->prodID = $product->prodID;
                 $productObject->categoryId = $product->category;
@@ -579,21 +583,21 @@ class CartController extends Controller
 
     //@route: /api/guest-check-cart-changes <--> @middleware: -----
     public function checkGuestCartChanges(Request $request){
-        if(!isset($request->productId) || !isset($request->count)){
+        if(!isset($request->productPackId) || !isset($request->count)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی ناقص است'));
             exit();
         }
-        $productId = $request->productId;
+        $productPackId = $request->productPackId;
         $count = $request->count;
         if($count <= 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong input', 'umessage' => 'ورودی اشتباه است'));
             exit();
         }
         $product = DB::select(
-            "SELECT P.id, P.prodName_fa, P.prodID, P.id, P.prodStatus, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+            "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.id, P.prodStatus, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
             FROM products P
             INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-            WHERE P.id = $productId");
+            WHERE P.id = $productPackId AND PP.status = 1 AND P.prodStatus = 1");
         if(count($product) == 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'product not found', 'umessage' => 'محصول مورد نظر یافت نشد'));
             exit();
@@ -618,37 +622,38 @@ class CartController extends Controller
 
     //@route: /api/user-add-to-cart <--> @middleware: ApiAuthenticationMiddleware
     public function addToCart(Request $request){
-        if(!isset($request->productId) || !isset($request->productCount)){
+        if(!isset($request->productPackId) || !isset($request->productPackCount)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
         }
         $userId = $request->userId;
-        $productId = $request->productId;
-        $productCount = $request->productCount;
+        $productPackId = $request->productPackId;
+        $productPackCount = $request->productPackCount;
         $product = DB::select(
-                    "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                    "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                     FROM products P
                     INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                    WHERE P.id = $productId"
+                    WHERE PP.id = $productPackId AND PP.status = 1 AND P.prodStatus = 1"
                 );
         if(count($product) === 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'product not found', 'umessage' => 'محصول موردنظر یافت نشد'));
             exit();
         }
         $product = $product[0];
-        if($productCount > $product->packStock){
+        if($productPackCount > $product->packStock){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong input', 'umessage' => 'مقدار درخواستی اشتباه است'));
             exit();
         }
         $productObject = new stdClass();
         $productObject->productId = $product->id;
+        $productObject->productPackId = $product->packId;
         $productObject->productName = $product->prodName_fa;
         $productObject->prodID = $product->prodID;
         $productObject->categoryId = $product->category;
         $productObject->productPrice = $product->price;
         $productObject->productUrl = $product->url;
         $productObject->productBasePrice = $product->base_price;
-        $productObject->productCount = $productCount;
+        $productObject->productCount = $productPackCount;
         $productObject->productUnitCount = $product->count;
         $productObject->productUnitName = $product->prodUnite;
         $productObject->productLabel = $product->label;
@@ -663,15 +668,15 @@ class CartController extends Controller
             $i = 0;
             foreach($products as $key => $value){
                 $i++;
-                if($key === $productId){
+                if($key === $productPackId){
                     $found = true;
                     $newKey = $key;
                 }
             }
             if($i === 0){
                 $p = new stdClass();
-                $p->$productId = new stdClass();
-                $p->$productId->count = $productCount;
+                $p->$productPackId = new stdClass();
+                $p->$productPackId->count = $productPackCount;
                 $pString = json_encode($p);
                 $updateQuery = DB::update("UPDATE shoppingCarts SET products = '$pString' WHERE id = $lastActiveCart->id");
                 if($updateQuery){
@@ -686,8 +691,8 @@ class CartController extends Controller
                 echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'product already exists', 'umessage' => 'محصول در سبدخرید موجود است'));
                 exit();
             }else{
-                $products->$productId = new stdClass();
-                $products->$productId->count = $productCount;
+                $products->$productPackId = new stdClass();
+                $products->$productPackId->count = $productPackCount;
                 $productString = json_encode($products);
                 $updateQueryResult = DB::update("UPDATE shoppingCarts SET products = '$productString' WHERE id = $lastActiveCart->id");
                 if($updateQueryResult){
@@ -701,8 +706,8 @@ class CartController extends Controller
         }else{
             $time = time();
             $p = new stdClass();
-            $p->$productId = new stdClass();
-            $p->$productId->count = $productCount;
+            $p->$productPackId = new stdClass();
+            $p->$productPackId->count = $productPackCount;
             $productString = json_encode($p);
             $insertQueryResult = DB::insert("INSERT INTO shoppingCarts (user, user_id, products, bundles, timestamp, status, active) VALUES ('', $userId, '$productString', '', $time, 0, 1)");
             if($insertQueryResult){
@@ -717,24 +722,24 @@ class CartController extends Controller
 
     //@route: /api/guest-add-to-cart <--> @middleware: -----
     public function guestAddToCart(Request $request){
-        if(!isset($request->productId) || !isset($request->productCount)){
+        if(!isset($request->productPackId) || !isset($request->productPackCount)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
         }
-        $productId = $request->productId;
-        $productCount = $request->productCount;
+        $productPackId = $request->productPackId;
+        $productPackCount = $request->productPackCount;
         $product = DB::select(
                     "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                     FROM products P
                     INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                    WHERE P.id = $productId"
+                    WHERE P.id = $productPackId"
                 );
         if(count($product) === 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'product not found', 'umessage' => 'محصول موردنظر یافت نشد'));
             exit();
         }
         $product = $product[0];
-        if($productCount > $product->packStock){
+        if($productPackCount > $product->packStock){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong input', 'umessage' => 'مقدار درخواستی اشتباه است'));
             exit();
         }
@@ -746,7 +751,7 @@ class CartController extends Controller
         $productObject->productPrice = $product->price;
         $productObject->productUrl = $product->url;
         $productObject->productBasePrice = $product->base_price;
-        $productObject->productCount = $productCount;
+        $productObject->productCount = $productPackCount;
         $productObject->productUnitCount = $product->count;
         $productObject->productUnitName = $product->prodUnite;
         $productObject->productLabel = $product->label;
@@ -773,14 +778,16 @@ class CartController extends Controller
         $cartProducts = [];
         foreach($cart as $key => $value){
             $product = DB::select(
-                "SELECT P.id, P.prodName_fa, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
-                FROM products P
-                INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PP.status = 1 AND P.prodStatus = 1 AND P.id = $key AND P.stock > 0 AND PP.stock > 0 AND (P.stock >= PP.stock * PP.count)");
+                    "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                    FROM products P
+                    INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
+                    WHERE PP.status = 1 AND P.prodStatus = 1 AND PP.id = $key AND P.stock > 0 AND PP.stock > 0 AND (P.stock >= PP.stock * PP.count)"
+                );
             if(count($product) !== 0){
                 $product = $product[0];
                 $productObject = new stdClass();
                 $productObject->productId = $product->id;
+                $productObject->productPackId = $product->packId;
                 $productObject->productName = $product->prodName_fa;
                 $productObject->prodID = $product->prodID;
                 $productObject->categoryId = $product->category;
@@ -794,31 +801,33 @@ class CartController extends Controller
                 $productObject->productWeight = $product->prodWeight;
                 array_push($cartProducts, $productObject);
             }
+            $addressPack = $user->address;
         }
         if($user->address === '' || $user->address === NULL){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
-            return NULL;
+            exit();
         }
         $addressPack = json_decode($user->address)->addressPack;
         if($addressPack->province == -1){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
-            return NULL;
+            exit();
         }
         $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$addressPack->province'");
         if(count($provinceId) == 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'province could not be found', 'umessage' => 'استان کاربر یافت نشد'));
-            return NULL;
+            exit();
         }
         $provinceId = $provinceId[0];
         $provinceId = $provinceId->id;
         $cityId = DB::select("SELECT id FROM cities WHERE city = '$addressPack->city'");
         if(count($cityId) == 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'city could not be found', 'umessage' => 'شهر کاربر یافت نشد'));
-            return NULL;
+            exit();
         }
         $cityId = $cityId[0];
         $cityId = $cityId->id;
         $info = DiscountCalculator::totalDiscount($cartProducts, $user, $provinceId);
+        $info->userStock = $user->user_stock;
         echo json_encode(array('status' => 'done', 'message' => 'discounts successfully found', 'information' => $info));
     }
 }

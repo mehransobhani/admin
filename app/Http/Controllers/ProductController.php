@@ -230,13 +230,14 @@ class ProductController extends Controller
                 $category = DB::select("SELECT C.name FROM category C WHERE C.id = $productCategory->category LIMIT 1");
                 $category = $category[0];
                 //$productCategories = ProductCategory::where('category', $productCategory->category)->where('product_id', '<>', $request->id)->orderBy('id', 'DESC');
-                $products = DB::select("SELECT P.id, PC.category, P.prodName_fa, P.url, P.prodID, PP.price FROM product_category PC INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PP.product_id = P.id
+                $products = DB::select("SELECT P.id, PP.id AS packId, PC.category, P.prodName_fa, P.url, P.prodID, PP.price FROM product_category PC INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PP.product_id = P.id
                     WHERE PC.category = $productCategory->category AND P.id <> $request->id AND P.prodStatus = 1 AND PP.status = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock) ORDER BY prodDate DESC LIMIT 6");
                 if(count($products) !== 0){
                     $response = [];
                     foreach($products as $product){
                         $object = new stdClass();
                         $object->productId = $product->id;
+                        $object->productPackId = $product->packId;
                         $object->productName = $product->prodName_fa;
                         $object->categoryId = $product->category;
                         $object->categoryName = $category->name;
@@ -249,18 +250,18 @@ class ProductController extends Controller
                     $resoponse = DiscountCalculator::calculateProductsDiscount($response);
                     echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'similar products are successfully found', 'products' => $response));
                 }else{
-                    echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'could not find any available similar products'));
+                    echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'could not find any available similar products', 'umessage' => 'محصولات مشابه این محصول یافت نشد'));
                 }
             }else{
-                echo json_encode(array('status' => 'failed', 'message' => 'product not found'));
+                echo json_encode(array('status' => 'failed', 'message' => 'product not found', 'umessage' => 'محصول یافت نشد'));
             }
         }else{
-            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
+            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
         }
     }
 
     public function sixNewProducts(Request $request){
-        $products = DB::select("SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, C.id AS category, C.name AS categoryName
+        $products = DB::select("SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, C.id AS category, C.name AS categoryName
             FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id 
             WHERE PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND  PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock) 
             ORDER BY P.id DESC LIMIT 6");
@@ -272,6 +273,7 @@ class ProductController extends Controller
         foreach($products as $product){
             $productObject = new stdClass();
             $productObject->productId = $product->id;
+            $productObject->productPackId = $product->packId;
             $productObject->productName = $product->prodName_fa;
             $productObject->prodID = $product->prodID;
             $productObject->categoryId = $product->category;

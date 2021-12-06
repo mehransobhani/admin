@@ -3,6 +3,7 @@ namespace App\Classes;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 use App\Classes\ShippingCalculator;
+use Dotenv\Util\Str;
 
 class DiscountCalculator{ 
 
@@ -329,7 +330,6 @@ class DiscountCalculator{
                 }
             }
             if(!$found){
-                echo $provinceId;
                 $responseObject->allowed = false;
                 $responseObject->discountPrice = 0;
                 $responseObject->type = '';
@@ -413,33 +413,28 @@ class DiscountCalculator{
                 $dp = $discount->percent * $cartPrice;
                 //$dp = floor($dp / 100) * $dp;
                 $dp -= $dp % 50;
-                if($dp > $discount->max_price){
+                if($dp > $discount->max_price && $discount->max_price !== NULL){
                     $dp = $discount->max_price;
                 }
                 $discountPrice = $dp;
-                echo $dp . " / ";
             }
             if($discountPrice > $cartPrice){
-                echo $cartPrice;
                 $discountPrice = $cartPrice;
             }
             $responseObject->allowed = true;
             $responseObject->discountPrice = $discountPrice;
             $responseObject->type = 'order';
+            $responseObject->joinable = $discount->joinable;
             $responseObject->message = "user is allowed to use this discount";
             $responseObject->umessage = "کد تخفیف با موفقیت ثبت شد";
             return $responseObject;
         }else if($discount->type == 'shipping'){
             if($discount->price !== NULL){
-                if($discount->price < $discount->max_price){
-                    $discountPrice = $discount->price;
-                }else{
-                    $discountPrice = $discount->max_price;
-                }
+                $discountPrice = $discount->price;
             }else if($discount->percent !== NULL){
                 $dp = $discount->percent * $shippingPrice;
                 $dp = floor($dp / 100) * $dp;
-                if($dp > $discount->max_price){
+                if($dp > $discount->max_price && $discount->max_price !== NULL){
                     $dp = $discount->max_price;
                 }
                 $discountPrice = $dp;
@@ -450,6 +445,7 @@ class DiscountCalculator{
             $responseObject->allowed = true;
             $responseObject->discountPrice = $discountPrice;
             $responseObject->type = 'shipping';
+            $responseObject->joinable = $discount->joinable;
             $responseObject->message = "user is allowed to use this discount";
             $responseObject->umessage = "کد تخفیف با موفقیت ثبت شد";
             return $responseObject;
@@ -758,6 +754,7 @@ class DiscountCalculator{
         $totalShippingPrice = 0;
         $totalWeight = 0;
         $discountedProducts = [];
+        $discountIds = [];
         foreach($products as $p){
             array_push($discountedProducts, 0);
             $totalOrderPrice += ($p->productCount * $p->productPrice);
@@ -833,7 +830,8 @@ class DiscountCalculator{
                                                 $r = $discount->max_price;
                                             }
                                             $discountedProducts[$i] += $r;
-                                        }   
+                                        }
+                                        array_push($discountIds, $discount->id);   
                                     }
                                 }
                             }
@@ -850,6 +848,7 @@ class DiscountCalculator{
                                     }
                                     $discountedProducts[$i] += $r;
                                 }
+                                array_push($discountIds, $discount->id);
                             }
                         }
                     }
@@ -868,7 +867,8 @@ class DiscountCalculator{
                                                 $r = $discount->max_price;
                                             }
                                             $discountedProducts[$i] += $r;
-                                        }   
+                                        }  
+                                        array_push($discountIds, $discount->id); 
                                     }
                                 }
                             }
@@ -885,6 +885,7 @@ class DiscountCalculator{
                                     }
                                     $discountedProducts[$i] += $r;
                                 }
+                                array_push($discountIds, $discount->id);
                             }
                         }
                     }
@@ -924,6 +925,7 @@ class DiscountCalculator{
                                 }
                                 $orderDiscountPrice += $r;
                             }
+                            array_push($discountIds, $discount->id);
                         }
                     }
                 }else if($discount->type === 'shipping'){
@@ -962,6 +964,7 @@ class DiscountCalculator{
                                 }
                                 $shippingDiscountPrice += $r;
                             }
+                            array_push($discountIds, $discount->id);
                         }
                     }
                 } 
@@ -994,6 +997,7 @@ class DiscountCalculator{
             $responseObject->shippingPrice = $totalShippingPrice;
             $responseObject->orderDiscountedPrice = $orderDiscountedPrice;
             $responseObject->shippingDiscountedPrice = $shippingDiscountedPrice;
+            $responseObject->discountIds = $discountIds;
             return $responseObject;
         }else{
             foreach($products as $product){
@@ -1006,7 +1010,121 @@ class DiscountCalculator{
             $responseObject->shippingPrice = $totalShippingPrice;
             $responseObject->orderDiscountedPrice = $totalOrderPrice;
             $responseObject->shippingDiscountedPrice = $totalShippingPrice;
+            $responseObject->discountIds = $discountIds;
             return $responseObject;
         }
+    }
+
+    public static function validateGiftCode($products, $user, $provinceId, $code){
+        $time = time();
+        $discount = DB::select(
+            "SELECT * 
+            FROM discounts 
+            WHERE code = '$code' AND 
+                status = 1 AND 
+                (expiration_date IS NULL OR expiration_date >= $time) AND
+                ((start_date IS NULL AND finish_date IS NULL) OR (start_date <= $time AND finish_date >= $time)) AND 
+                (numbers_left IS NULL OR numbers_left > 0) AND 
+                (type = 'order' OR type = 'shipping') 
+            ORDER BY id DESC 
+            LIMIT 1"
+        );
+        if(count($discount) === 0){
+            return NULL;
+        }
+        $discount = $discount[0];
+        $allow = true;
+        if($discount->reusable === 0){
+            $userPrevisouUsagesOfThisDiscount = DB::select(
+              "SELECT *
+              FROM discount_logs 
+              WHERE user_id = $user->id AND discount_id = $discount->id"
+            );
+            if(count($userPrevisouUsagesOfThisDiscount) !== 0){
+                return NULL;
+            }
+        }
+        if($discount->neworder === 1){
+            $userPreviousOrders = DB::select(
+                "SELECT id 
+                FROM orders
+                WHERE user_id = $user->id
+                LIMIT 1"
+            );
+            if(count($userPreviousOrders) !== 0){
+                return NULL;
+            }
+        }
+        $discountProvinceDependencies = DB::select(
+            "SELECT dependency_id 
+            FROM discount_dependencies 
+            WHERE discount_id = $discount->id AND dependency_type = 'province'"
+        );
+        $discountUserDependencies = DB::select(
+            "SELECT dependency_id 
+            FROM discount_dependencies 
+            WHERE discount_id = $discount->id AND dependency_type = 'user'"
+        );
+        $discountProductDependencies = DB::select(
+            "SELECT dependency_id 
+            FROM discount_dependencies 
+            WHERE discount_id = $discount->id AND dependency_type = 'product'"
+        );
+        $discountCategoryDependencies = DB::select(
+            "SELECT dependency_id 
+            FROM discount_dependencies 
+            WHERE discount_id = $discount->id AND dependency_type = 'category'"
+        );
+
+        if(count($discountProvinceDependencies) !== 0){
+            $obj = new stdClass();
+            $obj->dependency_id = $provinceId;
+            if(!in_array($obj, $discountProvinceDependencies)){
+                return NULL;
+            }
+        }
+        if(count($discountUserDependencies) !== 0){
+            $obj = new stdClass();
+            $obj->dependency_id = $user->id;
+            if(!in_array($obj, $discountUserDependencies)){
+
+                return NULL;
+            }
+        }
+        if(count($discountProductDependencies) !== 0){
+            $found = false;
+            foreach($products as $product){
+                $obj = new stdClass();
+                $obj->dependency_id = $product->productId;
+                if(in_array($obj, $discountProductDependencies)){
+                    $found = true;
+                    break;
+                }
+            }
+            if(!$found){
+                return NULL;
+            }
+        }
+        if(count($discountCategoryDependencies) !== 0){
+            $found = false;
+            foreach($products as $product){
+                $obj = new stdClass();
+                $obj->dependency_id = $product->categoryId;
+                if(in_array($obj, $discountCategoryDependencies)){
+                    $found = true;
+                    break;
+                }
+            }
+            if(!$found){
+                return NULL;
+            }
+        }
+        $response = new stdClass();
+        $response->discountId = $discount->id;
+        $response->discountType = $discount->type;
+        $response->discountPrice = $discount->price;
+        $response->discountPercent = $discount->percent;
+        $response->discountMaxPrice = $discount->max_price;
+        return $response;
     }
 }

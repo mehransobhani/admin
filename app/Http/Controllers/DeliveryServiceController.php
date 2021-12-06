@@ -22,14 +22,29 @@ class DeliveryServiceController extends Controller
             exit();
         }
         $user = $user[0];
-        $addressObject = json_decode($user->address);
-        $province = $addressObject->addressPack->province;
-        $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$province'");
-        if(count($provinceId) !== 0){
-            $provinceId = $provinceId[0]->id;
-        }else{
-            $provinceId = 0;
+        if($user->address === '' || $user->address === NULL){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+            exit();
         }
+        $addressPack = json_decode($user->address)->addressPack;
+        if($addressPack->province == -1){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+            exit();
+        }
+        $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$addressPack->province'");
+        if(count($provinceId) == 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'province could not be found', 'umessage' => 'استان کاربر یافت نشد'));
+            exit();
+        }
+        $provinceId = $provinceId[0];
+        $provinceId = $provinceId->id;
+        $cityId = DB::select("SELECT id FROM cities WHERE city = '$addressPack->city'");
+        if(count($cityId) == 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'city could not be found', 'umessage' => 'شهر کاربر یافت نشد'));
+            return NULL;
+        }
+        $cityId = $cityId[0];
+        $cityId = $cityId->id;
         $shoppingCart = DB::select(
                                 "SELECT products 
                                 FROM shoppingCarts
@@ -54,7 +69,7 @@ class DeliveryServiceController extends Controller
                         PP.label, PP.count, PP.base_price, PP.price, PP.stock, PP.status, P.prodWeight AS weight, PI.length, PI.width, PI.height
                         FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
                         INNER JOIN product_info PI ON P.id = PI.product_id
-                        WHERE P.id = $key 
+                        WHERE PP.id = $key 
                         LIMIT 1"
             );
             if(count($productInfo) == 0){
@@ -152,7 +167,8 @@ class DeliveryServiceController extends Controller
             }else if($service->id == 2){
                 $s->price = 15000;
             }else if($service->id == 3){
-                $pricePlans = DB::select("SELECT * FROM delivery_service_plans WHERE city_id = 12 OR province_id = 12 ORDER BY min_weight ASC");
+                
+                $pricePlans = DB::select("SELECT * FROM delivery_service_plans WHERE city_id = $cityId OR province_id = $provinceId ORDER BY min_weight ASC");
                 if(count($pricePlans) == 0){
                     continue;
                 }
@@ -165,7 +181,7 @@ class DeliveryServiceController extends Controller
                     }
                 }
                 if($found === false){
-                    $lastPricePlan = DB::select("SELECT * FROM delivery_service_plans WHERE city_id = 12 OR province_id = 12 ORDER BY max_weight DESC LIMIT 1");
+                    $lastPricePlan = DB::select("SELECT * FROM delivery_service_plans WHERE city_id = $cityId OR province_id = $provinceId ORDER BY max_weight DESC LIMIT 1");
                     if(count($lastPricePlan) == 0){
                         continue;
                     }
@@ -267,7 +283,7 @@ class DeliveryServiceController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong delivery service', 'umessage' => 'سرویس ارسال انتخابی غلط است'));
             exit();
         }
-        $allTimes = DB::select("SELECT WT.day, WT.interval_id, WT.type_house, WT.max_item_count, WT.expire_time, WT.label FROM work_times WT INNER JOIN work_time_interval WTI ON WT.interval_id = WTI.id ORDER BY WT.day ASC, WT.interval_id ASC");
+        $allTimes = DB::select("SELECT WT.id, WT.day, WT.interval_id, WT.type_house, WT.max_item_count, WT.expire_time, WT.label FROM work_times WT INNER JOIN work_time_interval WTI ON WT.interval_id = WTI.id ORDER BY WT.day ASC, WT.interval_id ASC");
         if(count($allTimes) === 0){
             echo json_encode(array('status' => 'failed', 'message' => 'not interval found', 'umessage' => 'بازه زمانی فعالی وجود ندارد'));
             exit();
@@ -298,6 +314,7 @@ class DeliveryServiceController extends Controller
                         if(count($count) === 0 || $count[0]->c < $wm){
                             $obj = new stdClass();
                             $obj->timestamp = $wt;
+                            $obj->worktimeId = $allTimes[$a]->id;
                             $obj->date = $wds;
                             $obj->time = $whs;
                             $obj->day = jdate('l', $wt);
@@ -321,13 +338,14 @@ class DeliveryServiceController extends Controller
 
     //@route: /api/user-set-delivery-service-temporary-information <--> @middleware: ApiAuthenticationMiddleware
     public function setDeliveryServiceTemporaryInformation(Request $request){
-        if(!isset($request->serviceId) || !isset($request->workTime)){
+        if(!isset($request->serviceId) || !isset($request->workTime) || !isset($request->workTimeId)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
             exit();
         }
         $userId = $request->userId;
         $serviceId = $request->serviceId;
         $workTime = $request->workTime;
+        $workTimeId = $request->workTimeId;
         $time = time();
         $activeTemporaryInformation = DB::select(
             "SELECT * 
@@ -337,8 +355,8 @@ class DeliveryServiceController extends Controller
         if(count($activeTemporaryInformation) === 0){
             $expirationDate = $time + (15 * 60);
             $insertResult = DB::insert("INSERT INTO delivery_service_temporary_information
-                (user_id, service_id, work_time, expiration_date)
-                VALUES ($userId, $serviceId, $workTime, $expirationDate)"
+                (user_id, service_id, work_time, work_time_id, expiration_date)
+                VALUES ($userId, $serviceId, $workTime, $workTimeId, $expirationDate)"
             );
             if(!$insertResult){
                 echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'error while inserting the new values', 'umessage' => 'خطا هنگام دخیره کردن اطلاعات جدید'));
@@ -350,7 +368,7 @@ class DeliveryServiceController extends Controller
             $expirationDate = $time + (15 * 60);
             $updateResult = DB::update(
                 "UPDATE delivery_service_temporary_information
-                SET service_id = $serviceId, work_time = $workTime, expiration_date = $expirationDate
+                SET service_id = $serviceId, work_time = $workTime, work_time_id = $workTimeId, expiration_date = $expirationDate
                 WHERE id = $activeTemporaryInformation->id"
             );
             if(!$updateResult){

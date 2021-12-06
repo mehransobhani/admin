@@ -102,9 +102,9 @@ class CategoryController extends Controller
 
                 /* P.id, P.prodName_fa, P.prodID, P.url, PP.price, PP.status */
 
-                $queryHaving = "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P RIGHT JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                $queryHaving = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P RIGHT JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                     WHERE C.id = $request->id OR C.parentID = $request->id)" . $having . $name . $minPrice . $maxPrice . " AND PP.status = 1 " . $order ;
-                $queryFinished = "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, -1 AS price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                $queryFinished = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, -1 AS price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                     WHERE C.id = $request->id OR C.parentID = $request->id)" . $finished . $name . $minPrice . $maxPrice . " AND PP.status = 1 " . $order;
                 $havingProducts = DB::select($queryHaving);
                 $finishedProducts = DB::select($queryFinished);
@@ -151,13 +151,8 @@ class CategoryController extends Controller
                             }
                             if($i === $distinctFiltersCount){
                                 $productObject = new stdClass();
-                                /*$object->productId = $p->id;
-                                $object->categoryId = $request->id;
-                                $object->productName = $p->prodName_fa;
-                                $object->productUrl = $p->url;
-                                $object->prodID = $p->prodID;
-                                $object->productPrice = $p->price;*/
                                 $productObject->productId = $p->id;
+                                $productObject->productPackId = $p->packId;
                                 $productObject->productName = $p->prodName_fa;
                                 $productObject->prodID = $p->prodID;
                                 $productObject->categoryId = $p->category;
@@ -177,13 +172,8 @@ class CategoryController extends Controller
                     }else{
                         foreach($products as $pr){
                             $productObject = new stdClass();
-                            /*$object->productId = $pr->id;
-                            $object->categoryId = $request->id;
-                            $object->productName = $pr->prodName_fa;
-                            $object->productUrl = $pr->url;
-                            $object->prodID = $pr->prodID;
-                            $object->productPrice = $pr->price;*/
                             $productObject->productId = $pr->id;
+                            $productObject->productPackId = $pr->packId;
                             $productObject->productName = $pr->prodName_fa;
                             $productObject->prodID = $pr->prodID;
                             $productObject->categoryId = $pr->category;

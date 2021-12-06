@@ -54,7 +54,7 @@ class DiscountController extends Controller
             $productInformation = DB::select(
                 "SELECT P.id, PC.category, PP.price, P.prodWeight 
                 FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id
-                WHERE P.id = $key AND PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock) AND $value->count <= PP.stock
+                WHERE PP.id = $key AND PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock) AND $value->count <= PP.stock
                 LIMIT 1"
             );
             if(count($productInformation) === 0){

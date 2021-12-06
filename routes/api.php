@@ -51,7 +51,7 @@ Route::group(['middleware' => 'auth:api'], function(){
 });
 
 
-Route::get('/get-banners', function () {
+/*Route::get('/get-banners', function () {
     $first = Banner::where('isActive', 1)->where('isBanner', 3)->where('_order', 1)->where(function($query){
         return $query->where(function($query){
             return $query->where('start_date', 0)->where('end_date', 0);
@@ -102,7 +102,7 @@ Route::get('/get-banners', function () {
         $thirdBannerAnchor = $third->anchor;
     }
     echo json_encode(array('status' => 'done', 'banners' => array('firstImage' => $firstBannerImage, 'firstAnchor' => $firstBannerAnchor, 'secondImage' => $secondBannerImage, 'secondAnchor' => $secondBannerAnchor, 'thirdImage' => $thirdBannerImage, 'thirdAnchor' => $thirdBannerAnchor)));
-});
+});*/
 
 Route::get('/get-six-new-product', function(){
     $products = Product::where('prodStatus', 1)->orderBy('prodDate', 'DESC')->take(6);
@@ -153,7 +153,8 @@ Route::get('/get-six-new-product', function(){
     Route::post('/category-breadcrumb', [CategoryController::class, 'categoryBreadcrumb']);
 
     /*##### Banner routes #####*/
-    Route::post('/category-banners', [BannerController::class, 'categoryBanners']);
+    Route::post('/category-banners',        [BannerController::class, 'categoryBanners']);
+    Route::get('/top-three-home-banners',   [BannerController::class, 'topThreeHomeBanners']);
 
     /*##### Menu routes ###*/
     Route::get('/menu', [MenuController::class, 'menuItemsInformation']); // OK!
@@ -185,7 +186,8 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-set-delivery-service-temporary-information', [DeliveryServiceController::class, 'setDeliveryServiceTemporaryInformation']);
         Route::post('/user-check-temporary-delivery-info-existance', [DeliveryServiceController::class, 'checkTemporaryDeliveryServiceInformationExistance']);
         Route::post('/user-check-gift-code',            [DiscountController::class,         'checkGiftCode']); // OK!
-        Route::post('/user-final-cart',                 [CartController::class,             'cartFinalInformation']); // TO BE TESTED!
+        Route::post('/user-final-cart',                 [CartController::class,             'cartFinalInformation']); // OK!
+        Route::post('/user-confirm-order',              [OrderController::class,            'confirmOrder']); // TO BE TESTED!
     });
 
     /*##### Guest Based Routes #####*/
