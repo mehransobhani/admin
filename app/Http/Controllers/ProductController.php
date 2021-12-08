@@ -26,7 +26,7 @@ class ProductController extends Controller
         }
         $productId = $request->productId;
         $product = DB::select(
-            "SELECT P.id, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+            "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
             FROM products P
             INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
             WHERE P.id = $productId AND PP.status = 1");
@@ -41,6 +41,7 @@ class ProductController extends Controller
             }
             $productObject = new stdClass();
             $productObject->productId = $product->id;
+            $productObject->productPackId = $product->packId;
             $productObject->productName = $product->prodName_fa;
             $productObject->prodID = $product->prodID;
             $productObject->categoryId = $product->category;

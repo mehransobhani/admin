@@ -2,8 +2,8 @@
 namespace App\Classes\payment\pasargad;
 class Pasargad {
 
-
-    function sign($data, $key){
-
+    public static function getToken($data, $price){
+        return 'The payment token will get returned';
     }
+
 }

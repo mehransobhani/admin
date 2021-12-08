@@ -353,7 +353,7 @@ class DeliveryServiceController extends Controller
             WHERE user_id = $userId AND expiration_date > $time"
         );
         if(count($activeTemporaryInformation) === 0){
-            $expirationDate = $time + (15 * 60);
+            $expirationDate = $time + (30 * 60);
             $insertResult = DB::insert("INSERT INTO delivery_service_temporary_information
                 (user_id, service_id, work_time, work_time_id, expiration_date)
                 VALUES ($userId, $serviceId, $workTime, $workTimeId, $expirationDate)"

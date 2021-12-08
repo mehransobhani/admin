@@ -954,7 +954,7 @@ class DiscountCalculator{
                         $categoryPermission = $found;
                     }
                     if($productPermission && $categoryPermission){
-                        if($discount->min_price === NULL | ($discount->min_price !== NULL && $discount->min_price <= $totalShippingPrice)){
+                        if($discount->min_price === NULL | ($discount->min_price !== NULL && $discount->min_price <= $totalOrderPrice)){
                             if($discount->price !== NULL){
                                 $shippingDiscountPrice += $discount->price;
                             }else if($discount->percent !== NULL){

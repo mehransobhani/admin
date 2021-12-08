@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
 use GrahamCampbell\ResultType\Result;
+use App\Classes\payment\pasargad\RSAProcessor;
 use stdClass;
 
 class OrderController extends Controller
@@ -176,16 +177,16 @@ class OrderController extends Controller
         $orders = DB::select(
             "SELECT O.id, O.date, OI.address, OI.postal_code, OI.fname, OI.lname, O.total_items, O.shipping_cost, O.stat 
             FROM orders O INNER JOIN order_info OI ON O.info_id = OI.id 
-            WHERE O.user_id = $user->id 
+            WHERE O.user_id = $user->id AND O.stat <> 6
             ORDER BY O.date DESC");
         if(count($orders) !== 0){
             $responseArray = array();
             foreach($orders as $o){
-                $orderItems = DB::select("SELECT COUNT(id) FROM order_items WHERE order_id = " . $o->id . " ");
+                /*$orderItems = DB::select("SELECT COUNT(id) FROM order_items WHERE order_id = " . $o->id . " ");
                 $itemsCount = 0; 
                 if(count($orderItems) != 0){
                     $itemsCount = count($orderItems);
-                }
+                }*/
                 array_push($responseArray, array('id' => $o->id, 'status' => $o->stat, 'date' => jdate('Y-m-d', $o->date),
                     'price' => ($o->total_items + $o->shipping_cost), 'postalCode' => $o->postal_code, 'firstName' => $o->fname, 'lastName' => $o->lname));
             }
@@ -237,7 +238,7 @@ class OrderController extends Controller
         $cityId = $cityId->id;
         $totalWeight = 0;
         $cart = DB::select(
-            "SELECT products 
+            "SELECT id, products 
             FROM shoppingCarts 
             WHERE user_id = $userId AND active = 1
             ORDER BY timestamp DESC
@@ -274,6 +275,8 @@ class OrderController extends Controller
                 $productObject->productLabel = $productInfo->label;
                 $productObject->productWeight = $productInfo->prodWeight;
                 $productObject->productBuyPrice = $productInfo->buyPrice;
+                $productObject->productStock = $productInfo->productStock;
+                $productObject->packStock = $productInfo->packStock;
                 array_push($cartProducts, $productObject);
                 if($productInfo->prodWeight !== NULL){
                     $totalWeight += $productInfo->prodWeight;
@@ -356,18 +359,7 @@ class OrderController extends Controller
             }
         }
         $totalPrice = $orderDiscountedPrice + $shippingDiscountedPrice;
-        /*if($totalPrice <= 0){
-            echo json_encode(array('status' => 'done', 'message' => 'order successfully inserted', 'umessage' => 'سفارش شما با موفقیت ثبت شد'));
-            exit();
-        }
-        if($useUserStock === 1){
-            $totalPrice -= $user->user_stock;
-        }
-        if($totalPrice <= 0){
-            echo json_encode(array('status' => 'done', 'message' => 'order successfully inserted', 'umessage' => 'سفارش شما با موفیت ثبت شد'));
-            exit();
-        }*/
-        //creating order info record
+        
         $orderInsertionResult = DB::insert(
             "INSERT INTO order_info
             (fname, lname, 
@@ -493,9 +485,7 @@ class OrderController extends Controller
                 exit();
             }
         }
-        if(($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser > 0){
-
-        }else if(($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser === 0){
+        if(($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser === 0){
             $time = time();
             $resultStatus = DB::update(
                 "UPDATE orders 
@@ -508,7 +498,7 @@ class OrderController extends Controller
             }
             $stockDeficit = $user->user_stock - $usedStockUser;
             $logStock = -1 * $usedStockUser;
-            $desc = "پرداخت تمام هزینه با استقاده از موجودی";
+            $desc = "پرداخت تمام هزینه با استفاده از موجودی";
             $resultStatus = DB::insert(
                 "INSERT INTO users_stock 
                     (stock, username, 
@@ -535,16 +525,150 @@ class OrderController extends Controller
                 echo json_encode(array('status' => 'failed', 'message' => 'could not update users wallet', 'umessage' => 'خطا در بروزرسانی کیف پول حساب کاربری'));
                 exit();
             }
-
-            /*##### insert product and pack logs #####*/
             
+            foreach($cartProducts as $cp){
+                /* product stock logs */
+                $productDescription = "کاهش موجودی فروش محصول از نوع پرداخت با موجودی";
+                $packDescripiton = "کاهش موجودی به دلیل ثبت سفارش مشتری";
+                $newProductStock = $cp->productStock - ($cp->productCount * $cp->productUnitCount);
+                $newPackStock = $cp->packStock - $cp->productCount;
+                DB::insert(
+                    "INSERT INTO product_stock ( 
+                        product_id, user, 
+                        user_id, stock, 
+                        date, order_id, 
+                        kind, description, anbar_id, 
+                        changed_count
+                    )
+                    VALUES (
+                        $cp->productId, '$user->username', 
+                        $user->id, $newProductStock, 
+                        $time, $orderId, 
+                        5, '$productDescription', 0, (-1 * $cp->productCount * $cp->productUnitCount)
+                    )"
+                );
+                DB::update(
+                    "UPDATE products 
+                    SET stock = $newProductStock 
+                    WHERE id = $cp->productId"
+                );
+                DB::insert(
+                    "INSERT INTO pack_stock_log (
+                        pack_id, user_id,
+                        stock, changed_count, 
+                        kind, description, 
+                        order_id, date
+                    ) VALUES (
+                        $cp->productPackId, $user->id, 
+                        $newProductStock, (-1 * $cp->productCount * $cp->productUnitCount), 
+                        2, '$packDescripiton',
+                        $orderId, $time
+                    )"
+                );
+                DB::update(
+                    "UPDATE product_pack 
+                    SET stock = $newPackStock 
+                    WHERE product_id = $cp->productId" 
+                );
+            }
+
+            /*** wipe users cart ***/ 
+            DB::update(
+                "UPDATE shoppingCarts 
+                SET products = {} 
+                WHERE id = $cart->id"
+            );
+
+            DB::insert(
+                "INSERT INTO user_order_status (
+                    user_id, order_id, insert_date, status
+                ) VALUES (
+                    $user->id, $orderId, 6
+                )"
+            );
+
+            /***| INSERT DISCOUNT INFORMATION OF THE PRODUCTS WHICH THEIR PRICE REDUCED BECAUSE OF DISCOUNTS |***/
+            foreach( $cartProducts as $cp){
+                if($cp->productPrice !== $cp->productDiscountedPrice){
+                    DB::insert(
+                        "INSERT INTO orders_discount (
+                            product_id, real_price, 
+                            off_price, pack_name, 
+                            order_id, date
+                        ) VALUES (
+                            $cp->productId, $cp->productPrice, 
+                            ($cp->productPrice - $cp->productDiscountedPrice), $cp->productPackId,
+                            $orderId, $time
+                        )"
+                    );
+                }
+            }
+
+            /***| INSERT DISCOUNTS LOGS OF THIS ORDER |***/
+            foreach($allDiscountIds as $discountId){
+                DB::insert(
+                    "INSERT INTO discount_logs (
+                        order_id, user_id, discount_id
+                    ) VALUES (
+                        $orderId, $userId, $discountId
+                    )"
+                );
+            }
+
+            /***| IT IS TOTALLY USELESS BUT I DO IT LIKE BEFORE |***/
+            /*if($shippingPrice !== $shippingDiscountedPrice){
+                DB::insert(
+                    "INSERT INTO order_shipping_discount (
+                        orderId, shipping_discount_id
+                    ) VALUES (
+                        $orderId, 1
+                    )"
+                );
+            }*/
+
+
+
+            return json_encode(array('status' => 'done', 'stage' => 'done', 'message' => 'order is set', 'umessage' => 'خرید با موفقیت انجام شد', 'orderId' => $orderId));
         }else{
-            // user will get redirected to the bank
+            $parameters = [
+                'InvoiceNumber' => '' . $orderId,
+                'InvoiceDate' => date('Y/m/d H:i:s'),
+                'TerminalCode' => 1664157,
+                'MerchantCode' => 4483845,
+                'Amount' => (($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser),
+                'RedirectAddress' => 'https://hoanri.com/bank-result',
+                'Timestamp' => date('Y/m/d H:i:s'),
+                'Action' => 1003,
+            ];
+            $jsonData = json_encode($parameters, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            $processor = new RSAProcessor();
+            $data = sha1($jsonData, true);
+            $data = $processor->sign($data);
+            $sign = base64_encode($data);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/GetToken');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json',
+            'Sign: ' . $sign,
+            ));
+            $response = curl_exec ($ch);
+            curl_close ($ch);
+            if($response == NULL){
+                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not connect to bank', 'umessage' => 'خطا در اتصال به درگاه بانک'));
+                exit();
+            }else{
+                $response = json_decode($response);
+                if($response->IsSuccess === false){
+                    echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong information was sent', 'umessage' => 'عدم تایید بانک'));
+                    exit();
+                }else{
+                    echo json_encode(array('status' => 'done', 'stage' => 'payment', 'message' => 'bank response was successful', 'bank' => 'pasargad', 'bankPaymentLink' => 'https://pep.shaparak.ir/payment.aspx?n=' . $response->Token));
+                    exit();
+                }
+            }
         }
-        /*
-        insertANewOrder();
-        insertSomeOrderInfo();*/
-        
     }
-    
 }

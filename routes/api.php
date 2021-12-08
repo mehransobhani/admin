@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
@@ -169,6 +170,7 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-add-to-cart',                [CartController::class,             'addToCart']); // OK!
         Route::post('/user-remove-from-cart',           [CartController::class,             'removeFromCart']); // OK!
         Route::post('/user-wipe-cart',                  [CartController::class,             'wipeCart']); // OK!
+        Route::post('/user-cart-change',                [CartController::class,             'userChangeCart']);
         Route::post('/user-cart-raw',                   [CartController::class,             'userCartRaw']); // TO BE TESTED ...
         Route::post('/user-all-return-requests',        [ReturnController::class,           'userAllReturnRequests']); // TEST
         Route::post('/user-accepted-return-requests',   [ReturnController::class,           'userAcceptedReturnRequests']); // TEST
@@ -188,7 +190,10 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-check-gift-code',            [DiscountController::class,         'checkGiftCode']); // OK!
         Route::post('/user-final-cart',                 [CartController::class,             'cartFinalInformation']); // OK!
         Route::post('/user-confirm-order',              [OrderController::class,            'confirmOrder']); // TO BE TESTED!
+
     });
+
+    Route::get('/user-pasargad-payment-result',    [   BankController::class,             'pasargadBankPaymentResult']); // OK!
 
     /*##### Guest Based Routes #####*/
     Route::post('/guest-cart',                          [CartController::class,             'guestCart']); // OK!
