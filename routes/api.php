@@ -11,6 +11,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReturnController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WalletController;
 use App\Http\Middleware\ApiAuthenticationMiddleware;
@@ -193,7 +194,12 @@ Route::get('/get-six-new-product', function(){
 
     });
 
-    Route::get('/user-pasargad-payment-result',    [   BankController::class,             'pasargadBankPaymentResult']); // OK!
+    /***| BANK ROUTES |***/
+    Route::get('/user-pasargad-payment-result',         [BankController::class,             'pasargadBankPaymentResult']); // OK!
+
+    /***| SEARCH ROUTES |***/
+    Route::post('/search-autocomplete',                 [SearchController::class,           'getAutocomplete']); // OK!
+    Route::post('/search-with-category',                [SearchController::class,           'searchWithCategoryResults']); // TO BE TESTED!
 
     /*##### Guest Based Routes #####*/
     Route::post('/guest-cart',                          [CartController::class,             'guestCart']); // OK!

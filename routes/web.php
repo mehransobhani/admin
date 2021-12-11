@@ -198,3 +198,88 @@ Route::get('/bank-result', function(){
     var_dump($response);
     curl_close ($ch);
 });
+
+Route::get('/search-auth', function(){
+    $authUrl = 'http://search.honari.com/api/v1/account/login';
+    $params = ['username' => 'admin', 'password' => 'pSHGDgKHP'];
+    $ch = curl_init($authUrl);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . '',
+        //'Content-Length: ' . strlen($jsonData)
+    ));
+    $result = curl_exec($ch);
+    $err = curl_error($ch);
+    var_dump($result);
+});
+
+Route::get('/search-auto', function(){
+    //$url = self::$BASE_URL . self::$AUTO_COMPLETE_URL . '/?apiToken='.self::$PRODUCT_API_TOKEN.'&query=' . urlencode($query);
+    //$response = $this->CallApi($url,[],true,1,'GET');
+    $query = 'منجوق';
+    $autoCompleteUrl = 'http://search.honari.com/api/v1/management/search/autocomplete/?apiToken=21bb3b6e-0f96-4718-8d6c-8f03a538927e&query=' . urlencode($query);
+    $ch = curl_init($autoCompleteUrl);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+    //curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . '',
+        //'Content-Length: ' . strlen($jsonData)
+    ));
+    $result = curl_exec($ch);
+    var_dump($result);
+});
+
+Route::get('/search-category', function(){
+    // {"name":"product_price","min":"12000","max":"100000","values":[]
+    // {"name":"جنس نخ","min":null,"max":null,"values":["پنبه ای","مصنوعی"]}
+    $facet = new stdClass();
+    $facet->name = 'product_price';
+    $facet->min = null;
+    $facet->max = null;
+    $facet->values = [];
+
+    $data = [
+        'category' => 'تریشه چرم دوزی',
+        'facets' =>[
+            $facet
+        ],
+        'indexName' => 'products',
+        'query' => null,
+        'page' => 2,
+        'size' => 12,
+        'sort' => 'has_stock'
+    ];
+
+    $data = json_encode($data);
+    
+    //$query = 'منجوق';
+    $url = 'http://search.honari.com/api/v1/management/search/searchWithCategory';
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        //'Authorization: Bearer ',
+        //'Content-Length: ' . strlen($jsonData)
+    ));
+    $result = curl_exec($ch);
+    $result = json_decode($result);
+    var_dump($result);
+    exit();
+    echo json_encode(array('status' => 'done', 'result' => $result));
+});
