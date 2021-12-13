@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
 use GrahamCampbell\ResultType\Result;
 use App\Classes\payment\pasargad\RSAProcessor;
+use App\Classes\payment\pasargad\Pasargad;
 use stdClass;
 
 class OrderController extends Controller
@@ -175,7 +176,7 @@ class OrderController extends Controller
         $user = DB::select("SELECT * FROM users WHERE id = $userId");
         $user = $user[0];
         $orders = DB::select(
-            "SELECT O.id, O.date, OI.address, OI.postal_code, OI.fname, OI.lname, O.total_items, O.shipping_cost, O.stat 
+            "SELECT O.id, O.orderReferenceID, O.date, OI.address, OI.postal_code, OI.fname, OI.lname, O.total_items, O.shipping_cost, O.stat 
             FROM orders O INNER JOIN order_info OI ON O.info_id = OI.id 
             WHERE O.user_id = $user->id AND O.stat <> 6
             ORDER BY O.date DESC");
@@ -188,7 +189,7 @@ class OrderController extends Controller
                     $itemsCount = count($orderItems);
                 }*/
                 array_push($responseArray, array('id' => $o->id, 'status' => $o->stat, 'date' => jdate('Y-m-d', $o->date),
-                    'price' => ($o->total_items + $o->shipping_cost), 'postalCode' => $o->postal_code, 'firstName' => $o->fname, 'lastName' => $o->lname));
+                    'price' => ($o->total_items + $o->shipping_cost), 'orderReferenceId' => $o->orderReferenceID, 'postalCode' => $o->postal_code, 'firstName' => $o->fname, 'lastName' => $o->lname));
             }
             echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'successfully found previous orders', 'orders' => $responseArray));
         }else{
@@ -633,42 +634,189 @@ class OrderController extends Controller
             $parameters = [
                 'InvoiceNumber' => '' . $orderId,
                 'InvoiceDate' => date('Y/m/d H:i:s'),
-                'TerminalCode' => 1664157,
-                'MerchantCode' => 4483845,
                 'Amount' => (($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser),
-                'RedirectAddress' => 'https://hoanri.com/bank-result',
+                'RedirectAddress' => 'https://hoanri.com/payment-result/pasargad',
                 'Timestamp' => date('Y/m/d H:i:s'),
-                'Action' => 1003,
             ];
-            $jsonData = json_encode($parameters, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            $processor = new RSAProcessor();
-            $data = sha1($jsonData, true);
-            $data = $processor->sign($data);
-            $sign = base64_encode($data);
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-            curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/GetToken');
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-            'Content-Type: application/json',
-            'Sign: ' . $sign,
-            ));
-            $response = curl_exec ($ch);
-            curl_close ($ch);
-            if($response == NULL){
-                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not connect to bank', 'umessage' => 'خطا در اتصال به درگاه بانک'));
+            $pasargad = new Pasargad();
+            $result = $pasargad->createPaymentToken($parameters);
+            if($result['status'] !== 'failed'){
+                echo json_encode(array('status' => 'failed', 'source' => 'Bank Class', 'message' => $result['message'], 'umessage' => $result['umessage']));
                 exit();
-            }else{
-                $response = json_decode($response);
-                if($response->IsSuccess === false){
-                    echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong information was sent', 'umessage' => 'عدم تایید بانک'));
-                    exit();
-                }else{
-                    echo json_encode(array('status' => 'done', 'stage' => 'payment', 'message' => 'bank response was successful', 'bank' => 'pasargad', 'bankPaymentLink' => 'https://pep.shaparak.ir/payment.aspx?n=' . $response->Token));
-                    exit();
-                }
+            }else if($result['status'] === 'done'){
+                //'stage' => 'payment', 'message' => 'bank response was successful', 'bank' => 'pasargad', 'token' => $response->Token, 'bankPaymentLink' => 'https://pep.shaparak.ir/payment.aspx?n=' . $response->Token);
+                echo json_encode(array('status' => 'done', 'stage' => 'payment', 'message' => $result['message'], 'bank' => 'pasargad', 'token' => $result['token'], 'bankPaymentLink' => $result['bankPaymentLink']));
             }
         }
+    }
+
+    public function manipulateProductAndLog($productId, $username, $userId, $changedStock, $orderId, $kind, $description, $anbarId, $factorId, $newFactorId, $changedCount){
+        $time = time();
+        DB::insert(
+            "INSERT INTO product_stock (
+                product_id, user, user_id, stock, date, order_id, kind, description, anbar_id, factor_id, new_factor_id, changed_count
+            ) VALUES (
+                $productId, '$username', $userId, ((SELECT stock FROM products WHERE id = $productId LIMIT 1) + $changedStock), $time, '$orderId', $kind, '$description', $anbarId, $factorId, $newFactorId, $changedCount )"
+        );
+        DB::update(
+            "UPDATE products 
+            SET stock = (stock + $changedCount) 
+            WHERE id = $productId"
+        );
+    }
+
+    public function manipulatePackAndLog($packId, $userId, $changedStock, $kind, $description, $orderId, $factorId){
+        $time = time();
+        DB::insert(
+            "INSERT INTO pack_stock_log (
+                pack_id, user_id, stock, changed_count, kind, description, order_id, factor_id, date
+            ) VALUES (
+                $packId, $userId, (SELECT stock FROM product_pack WHERE id = $packId AND status = 1) + $changedStock, $changedStock, $kind, '$description', $orderId, $factorId, $time 
+            )"
+        );
+        DB::update(
+            "UPDATE product_pack 
+            SET stock = stock + $changedStock 
+            WHERE id = $packId"
+        );
+    }
+
+    public function insertProductReturns($productId, $pack, $orderId, $count, $full, $desc, $username, $putUser, $putDate){
+        $time = time();
+        DB::insert(
+            "INSERT INTO product_returns (
+                product_id, pack, order_id, `count`, full, `desc`, user, date, put_user, put_date 
+            ) VALUES (
+                $productId, '$pack', $orderId, $count, $full, '$desc', '$username', $time, $putUser, $putDate
+            )"
+        );
+    }
+
+    public function insertOrdersLog($orderId, $username, $action){
+        $time = time();
+        DB::insert(
+            "INSERT INTO orders_log (
+                order_id, user, `action`, `date`
+            ) VALUES (
+                '$orderId', '$username', '$action', $time
+            )"
+        );
+    }
+
+    public function updateOrderStatus($orderId, $status){
+        DB::update(
+            "UPDATE orders 
+            SET stat = $status 
+            WHERE id = $orderId"
+        );
+    }
+
+    public function updateUsersLastShoppingCartStatus($userId, $status){
+        DB::update(
+            "UPDATE shoppingCarts S 
+            SET S.active = $status 
+            WHERE Sid = (SELECT SS.id FROM shoppingCarts SS WHERE SS.user_id = $userId AND SS.active <> $status ORDER BY SS.id DESC LIMIT 1)"
+        );
+    }
+
+    public function updateUserStockAndLog($username, $userId, $changer, $orderId, $desc, $changedCount, $type){
+        $time = time();
+        DB::insert(
+            "INSERT INTO users_stock (
+                stock, username, user_id, changer, order_id, `desc`, changed_count, type, date
+            ) VALUES (
+                ((SELECT user_stock from users WHERE id = $userId) + $changedCount), '$username', $userId, '$changer', '$orderId', '$desc', $changedCount, $type, $time
+            )"
+        );
+        DB::update("UPDATE users SET user_stock = (user_stock + $changedCount) WHERE id = $userId");
+    }
+
+    public function updateUserOrderCountAndTotalBuy($userId, $buy, $count){
+        DB::update( 
+            "UPDATE users 
+            SET total_buy = (total_buy + $buy), orders_count = (orders_count + $count) 
+            WHERE id = $userId"
+        );
+    }
+
+    // @route: /api/user-cancel-order <--> @middleware: UserAuthenticationMiddleware
+    public function cancelOrder(Request $request){
+        if(!isset($request->orderId)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+        $userId = $request->userId;
+        $orderId = $request->orderId;
+        $user = DB::select("SELECT * FROM users WHERE id = $userId LIMIT 1");
+        $user = $user[0];
+        $order = DB::select(
+            "SELECT * FROM orders WHERE id = $orderId"
+        );
+        if(count($order) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'order not found', 'umessage' => 'سفارش موردنظر یافت نشد'));
+            exit();
+        }
+        $order = $order[0];
+        if($order->stat === 7){
+            echo json_encode(array('status' => 'done', 'message' => 'order have been canceled', 'umessage' => 'سفارش لغو شده است'));
+            exit();
+        }
+        if($order->stat !== 1){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'order can not get cancelled', 'umessage' => 'سفارش در این مرحله نمیتواند لغو شود'));
+            exit();
+        }
+        $orderItems = DB::select("SELECT * FROM order_items WHERE order_id = $orderId");
+        foreach($orderItems as $orderItem){
+            $productDescription =  'افزایش موجودی به دلیل کنسل شدن سفارش توسط کاربر';
+            $this->manipulateProductAndLog(
+                $orderItem->product_id, 
+                $user->username, 
+                $userId, 
+                ($orderItem->count * $orderItem->pack_count), 
+                $orderId, 
+                15, 
+                $productDescription,
+                0,
+                "NULL",
+                "NULL",
+                ($orderItem->count * $orderItem->pack_count)
+            );
+            $this->manipulatePackAndLog(
+                $orderItem->pack_id,
+                $userId,
+                $orderItem->count,
+                5,
+                'افزایش موجودی به دلیل کنسلی سفارش', 
+                $orderId, 
+                "NULL"
+            );
+            $this->insertProductReturns(
+                $orderItem->product_id, 
+                '', 
+                $orderId,
+                0,
+                0,
+                'کنسل شدن سفارش توسط کاربر',
+                $user->username,
+                "NULL",
+                "NULL"
+            );
+        }
+        $this->insertOrdersLog($orderId, $user->username, 'cancel');
+        $this->updateOrderStatus($orderId, 7);
+        //$this->updateUsersLastShoppingCartStatus($userId, 1);
+        $userPaidPrice = ($order->total_items + $order->shipping_cost) - ($order->off + $order->shipping_price_off);
+        $this->updateUserStockAndLog(
+            $user->username, 
+            $userId, 
+            $user->username, 
+            $orderId, 
+            'افزایش موجودی به دلیل لغو شدن سفارش', 
+            $userPaidPrice, 
+            7
+        );
+        $this->updateUserOrderCountAndTotalBuy($userId, (-1 * $userPaidPrice), -1);
+        
+        echo json_encode(array('status' => 'done', 'message' => 'order successfully canceled', 'umessage' => 'سفارش با موفقیت لغو شد'));
     }
 }

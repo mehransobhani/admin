@@ -190,8 +190,9 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-check-temporary-delivery-info-existance', [DeliveryServiceController::class, 'checkTemporaryDeliveryServiceInformationExistance']);
         Route::post('/user-check-gift-code',            [DiscountController::class,         'checkGiftCode']); // OK!
         Route::post('/user-final-cart',                 [CartController::class,             'cartFinalInformation']); // OK!
-        Route::post('/user-confirm-order',              [OrderController::class,            'confirmOrder']); // TO BE TESTED!
-
+        Route::post('/user-confirm-order',              [OrderController::class,            'confirmOrder']); // TO BE TESTED! *
+        Route::post('/user-cancel-order',               [OrderController::class,            'cancelOrder']); // TO BE TESTED! *
+        Route::post('/user-charge-wallet',              [WalletController::class,           'chargeWallet']);
     });
 
     /***| BANK ROUTES |***/
@@ -199,10 +200,11 @@ Route::get('/get-six-new-product', function(){
 
     /***| SEARCH ROUTES |***/
     Route::post('/search-autocomplete',                 [SearchController::class,           'getAutocomplete']); // OK!
-    Route::post('/search-with-category',                [SearchController::class,           'searchWithCategoryResults']); // TO BE TESTED!
+    Route::post('/search-with-category',                [SearchController::class,           'searchWithCategoryResults']); // OK!
+    Route::post('/search-products',                     [SearchController::class,           'searchProductsResult']); // OK!
 
     /*##### Guest Based Routes #####*/
     Route::post('/guest-cart',                          [CartController::class,             'guestCart']); // OK!
-    Route::post('/guest-add-to-cart',                   [CartController::class,             'guestAddToCart']); // TO BE TESTED!
+    Route::post('/guest-add-to-cart',                   [CartController::class,             'guestAddToCart']); // OK!
     Route::post('/guest-check-cart-changes',            [CartController::class,             'checkGuestCartChanges']); // ****** I HAVE TO WORKD ON THIS FIRST ******
     //Route::post('/cpd', [CategoryController::class, 'calculateProductsDiscount']);

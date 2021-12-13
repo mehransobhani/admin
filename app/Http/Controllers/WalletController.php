@@ -10,6 +10,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
+use App\Classes\payment\pasargad\Pasargad;
 use DateTime;
 use stdClass;
 
@@ -146,5 +147,53 @@ class WalletController extends Controller
         $user = DB::select("SELECT * FROM users WHERE id = $userId");
         $user = $user[0];
         echo json_encode(array('status' => 'done', 'balance' => $user->user_stock, 'message' => 'user balance successfully found'));
+    }
+
+    //@route: /api/user-charge-wallet <--> @middleware: ApiAuthenticationMiddleware
+    public function chargeWallet(Request $request){
+        if(!isset($request->price)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+        $price = intval($request->price);
+        $userId = $request->userId;
+        if($price < 100){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong price input', 'umessage' => 'مقدار درخواستی اشتباه است'));
+            exit();
+        }
+        $time = time();
+        $ref = '98' . $time . rand(0, 9999);
+        $queryResult = DB::insert(
+            "INSERT INTO users_trans (
+                user_id, price, ref, date, status, kind, bank, ref_id
+            ) VALUES (
+                $userId, $price, '$ref', $time, 0, 1, 'pasargad', ''
+            )"
+        );
+        if(!$queryResult){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message'=> 'an error occured while inserting data to users_trans', 'umessage' => 'خطا در ذخیره‌سازی اولیه اطلاعات پرداخت'));
+            exit();
+        }
+        $pasargad = new Pasargad();
+        $parameters = [
+            'InvoiceNumber' => $ref,
+            'InvoiceDate' => date('Y/m/d H:i:s'),
+            'Amount' => $price * 10,
+            'RedirectAddress' => 'https://honari.com/charge_result/pasargad',
+            'Timestamp' => date('Y/m/d H:i:s'),
+        ];
+        $result = $pasargad->createPaymentToken($parameters);
+        if($result['status'] === 'failed'){
+            echo json_encode(array('status' => 'failed', 'source' => 'Bank Class', 'message' => $result['message'], 'umessage' => $result['umessage']));
+            exit();
+        }else if($result['status'] === 'done'){
+            echo json_encode(array('status' => 'done', 'stage' => 'payment', 'message' => $result['message'], 'bank' => 'pasargad', 'token' => $result['token'], 'bankPaymentLink' => $result['bankPaymentLink']));
+        }else{
+            var_dump($result);
+        }
+    }
+
+    public function walletChargingResult(Request $request){
+
     }
 }

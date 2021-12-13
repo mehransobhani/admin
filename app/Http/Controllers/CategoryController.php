@@ -97,7 +97,7 @@ class CategoryController extends Controller
                 }else if($request->order == 'expensive'){
                     $order = " ORDER BY PP.price DESC, P.prodDate DESC";
                 }
-
+                
                 $response = [];
 
                 /* P.id, P.prodName_fa, P.prodID, P.url, PP.price, PP.status */
@@ -199,6 +199,17 @@ class CategoryController extends Controller
         }else{
             echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
         }
+    }
+
+    public function fpage(Request $request){
+        /*DB::select(
+            "SELECT * 
+            FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id 
+            WHERE P.id IN (SELECT PC.product_id 
+                            FROM product_catgory 
+                            WHERE category = 622) 
+                AND P.stock >= 0"
+        );*/
     }
 
     public function categoryFilters(Request $request){

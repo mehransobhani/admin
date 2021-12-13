@@ -80,4 +80,32 @@ class SearchController extends Controller
         $result = json_decode($result);
         echo json_encode(array('status' => 'done', 'message' => 'data is successfully found', 'result' => $result));
     }
+
+    public function searchProductsResult(Request $request){
+        if(!isset($request->category) || !isset($request->page)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+
+        //$query = urlencode($request->category->get('query'));
+        
+        $query = urlencode($request->category);
+        $page = $request->page;
+        
+        //$query = urlencode($query);
+
+        $url = 'http://search.honari.com/api/v1/management/search/search/?apiToken=21bb3b6e-0f96-4718-8d6c-8f03a538927e&query=' . $query . '&page=' . $page . '&size=12&sort=has_stock';
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json'
+        ));
+        $result = curl_exec($ch);
+        $result = json_decode($result);
+        echo json_encode(array('status' => 'done', 'result' => $result));
+    }
 }

@@ -176,4 +176,86 @@ class BankController extends Controller
         echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber));
         exit();
     }
+
+    public function bankChargeResult (Request $request){
+        if(!isset($request->iD) || !isset($request->iN) || !isset($request->tref)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
+            exit();
+        }
+        $userId = $request->userId;
+        $user = DB::select("SELECT * FROM users WHERE id = $userId LIMIT 1");
+        $user = $user[0];
+        $iN = $request->iN;
+        $iD = $request->iD;
+        $tref = $request->tref;
+        $time = time();
+        $data = [
+            'transactionReferenceID' => $tref
+        ];
+        $jsonData = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/CheckTransactionResult');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        ));
+        $response = curl_exec ($ch);
+        curl_close ($ch);
+        if($response === NULL){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not connect to bank', 'umessage' => 'خطا در برقراری ارتباط با بانک پاسارگاد'));
+            exit();
+        }
+        $response = json_decode($response);
+        if($response->IsSuccess === false){
+            echo json_encode(array('status' => 'done', 'successfulPayment' => false, 'message' => 'payment was not successful', 'umessage' => 'پرداخت موفقیت آمیز نبود'));
+            exit();
+        }
+        $ref = intval($response->InvoiceNumber);
+        $amount = intval($response->Amount) / 10;
+        $traceNumber = $response->TraceNumber . "";
+        $result = DB::select(
+            "SELECT * 
+            FROM users_trans 
+            WHERE ref = '$ref' AND user_id = $userId AND kind = 1 AND status = 0 
+            LIMIT 1 "
+        );
+        if(count($result) !== 1){
+            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'payment was successful', 'umessage' => 'پرداخت موفقیت آمیز بود'));
+            exit();
+        }
+        $transId = $result[0]->id;
+        $queryResult = DB::update(
+            "UPDATE users_trans 
+            SET status = 1, ref_id = '$tref' 
+            WHERE id = $transId"
+        );
+        if(!$queryResult){
+            echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'message' => 'error while updating user transaction state', 'umessage' => 'خطا هنگام بروزرسانی اولیه اطلاعات پرداخت'));
+            exit();
+        }
+        $description = 'افزایش موجودی با شارژ حساب';
+        $queryResult = DB::insert(
+            "INSERT INTO users_stock (
+                stock, username, user_id, changer, order_id, desc, changed_count, type, date
+            ) VALUES (
+                ($user->user_stock + $amount), '$user->username', $userId, '$user->username', 0, '$description', $amount, 1, $time
+            )"
+        );
+        if(!$queryResult){
+            echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'c', 'source' => 'c', 'message' => 'an error occured while inserting new user stock log', 'umessage' => 'خطا هنگام ایجاد سند پرداخت کاربر'));
+            exit();
+        }
+        $queryResult = DB::update(
+            "UPDATE users 
+            SET user_stock = $amount + $user->user_stock 
+            WHERE id = $userId"
+        );
+        if(!$queryResult){
+            echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'source' => 'c', 'message' => 'an error occured while updating users stock value', 'umessage' => 'خطا هنگام بروزرسانی حساب کاربر'));
+            exit();
+        }
+        echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'source' => 'c', 'message' => 'users account successfully charged'));
+    }
 }
