@@ -251,8 +251,9 @@ class OrderController extends Controller
         }
         $cartProducts = [];
         $totalBuyPrice = 0;
-        $cart = json_decode($cart[0]->products);
-        foreach($cart as $key => $value){
+        $cart = $cart[0];
+        $cartProductsObject = json_decode($cart->products);
+        foreach($cartProductsObject as $key => $value){
             $productInfo = DB::select(
                 "SELECT P.id, PP.id AS packId, P.buyPrice, P.prodName_fa, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
@@ -283,7 +284,7 @@ class OrderController extends Controller
                     $totalWeight += $productInfo->prodWeight;
                 }
                 if($productInfo->buyPrice !== NULL){
-                    $totalBuyPrice += ($productInfo->count * $productInfo->buyPrice);
+                    $totalBuyPrice += ($productInfo->count * ($productInfo->buyPrice * $productInfo->productUnitCount));
                 }
             }
         }
@@ -477,7 +478,7 @@ class OrderController extends Controller
                     ($cp->productId, $cp->productCount,
                     $cp->productPackId, $cp->productUnitCount, '$cp->productLabel', 
                     $cp->productPrice, $off, 
-                    $cp->productBuyPrice, 0, 
+                    ($cp->productBuyPrice * $cp->productUnitCount), 0, 
                     $orderId, 0, $sellPrice, 
                     $taxPrice, $dutyPrice)"
             );
@@ -576,13 +577,13 @@ class OrderController extends Controller
             /*** wipe users cart ***/ 
             DB::update(
                 "UPDATE shoppingCarts 
-                SET products = {} 
+                SET active = 0 
                 WHERE id = $cart->id"
             );
 
             DB::insert(
                 "INSERT INTO user_order_status (
-                    user_id, order_id, insert_date, status
+                    user_id, order_id, status
                 ) VALUES (
                     $user->id, $orderId, 6
                 )"
@@ -590,7 +591,7 @@ class OrderController extends Controller
 
             /***| INSERT DISCOUNT INFORMATION OF THE PRODUCTS WHICH THEIR PRICE REDUCED BECAUSE OF DISCOUNTS |***/
             foreach( $cartProducts as $cp){
-                if($cp->productPrice !== $cp->productDiscountedPrice){
+                if($cp->productPrice !== $cp->discountedPrice){
                     DB::insert(
                         "INSERT INTO orders_discount (
                             product_id, real_price, 
@@ -598,7 +599,7 @@ class OrderController extends Controller
                             order_id, date
                         ) VALUES (
                             $cp->productId, $cp->productPrice, 
-                            ($cp->productPrice - $cp->productDiscountedPrice), $cp->productPackId,
+                            ($cp->productPrice - $cp->discountedPrice), $cp->productPackId,
                             $orderId, $time
                         )"
                     );
@@ -640,7 +641,7 @@ class OrderController extends Controller
             ];
             $pasargad = new Pasargad();
             $result = $pasargad->createPaymentToken($parameters);
-            if($result['status'] !== 'failed'){
+            if($result['status'] === 'failed'){
                 echo json_encode(array('status' => 'failed', 'source' => 'Bank Class', 'message' => $result['message'], 'umessage' => $result['umessage']));
                 exit();
             }else if($result['status'] === 'done'){
@@ -665,13 +666,19 @@ class OrderController extends Controller
         );
     }
 
-    public function manipulatePackAndLog($packId, $userId, $changedStock, $kind, $description, $orderId, $factorId){
+    public function manipulatePackAndLog($packId, $userId, $count, $packCount, $kind, $description, $orderId, $factorId){
         $time = time();
+        $changedAmount = $count * $packCount;
+        $changedStock = $count;
+        if($kind === 2){
+            $changedAmount *= -1;
+            $changedStock *= -1;
+        }
         DB::insert(
             "INSERT INTO pack_stock_log (
                 pack_id, user_id, stock, changed_count, kind, description, order_id, factor_id, date
             ) VALUES (
-                $packId, $userId, (SELECT stock FROM product_pack WHERE id = $packId AND status = 1) + $changedStock, $changedStock, $kind, '$description', $orderId, $factorId, $time 
+                $packId, $userId, (SELECT stock FROM product_pack WHERE id = $packId AND status = 1) + $changedAmount, $changedAmount, $kind, '$description', $orderId, $factorId, $time 
             )"
         );
         DB::update(
@@ -785,6 +792,7 @@ class OrderController extends Controller
                 $orderItem->pack_id,
                 $userId,
                 $orderItem->count,
+                $orderItem->pack_count,
                 5,
                 'افزایش موجودی به دلیل کنسلی سفارش', 
                 $orderId, 

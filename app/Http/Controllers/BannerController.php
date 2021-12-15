@@ -12,7 +12,26 @@ use Illuminate\Support\Facades\DB;
 class BannerController extends Controller
 {
     public function categoryBanners(Request $request){
-        if(isset($request->id)){
+        if(!isset($request->id)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+        $categoryId = $request->id;
+        $category = DB::select("SELECT * FROM category WHERE id = $categoryId LIMIT 1");
+        if(count($category) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'category not found', 'umessage' => 'درسته بندی یافت نشد'));
+            exit();
+        }
+        $category = $category[0];
+        $time = time();
+        $banners = DB::select(
+            "SELECT img AS image, anchor AS url, description AS title
+            FROM banners 
+            WHERE cat_id = $categoryId AND (start_date = 0 OR start_date <= $time) AND (end_date = 0 OR end_date >= $time) AND isActive = 1 AND isBanner = 6 
+            ORDER BY _order ASC"
+        );
+        echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'banners successfully found', 'banners' => $banners));
+        /*if(isset($request->id)){
             $category = Category::where('id', $request->id);
             if($category->count() !== 0){
                 $category = $category->first();
@@ -27,7 +46,7 @@ class BannerController extends Controller
                     }else{
                         $refrenceId = 0;
                     }
-                    $isBanner = 5;
+                    $isBanner = 6;
                     $refrenceColumn = 'artID';
                 }
                 $banners = Banner::where($refrenceColumn, $refrenceId)->where('isActive', 1)->where('isBanner', $isBanner)->where(function($query){
@@ -53,7 +72,7 @@ class BannerController extends Controller
             }
         }else{
             echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
-        }
+        }*/
     }
 
     public function topSixBestsellerSimilarProducts(Request $request){

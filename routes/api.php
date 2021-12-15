@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ArtController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CartController;
@@ -139,27 +140,32 @@ Route::get('/get-six-new-product', function(){
 
 
     /*##### Product routes #####*/
-    Route::get('six-new-products', [ProductController::class, 'sixNewProducts']);;
-    Route::post('/product-basic-information', [ProductController::class, 'productBasicInformation']);
-    Route::post('/product-description', [ProductController::class, 'productDescription']);
-    Route::post('/product-features', [ProductController::class, 'productFeatures']);
-    Route::post('/product-breadcrumb', [ProductController::class, 'productBreadcrumb']);
-    Route::post('/similar-products', [ProductController::class, 'similarProducts']);
-    Route::post('/top-six-bestseller-similar-products', [ProductController::class, 'topSixBestsellerSimilarProducts']);
+    Route::get('six-new-products',                      [ProductController::class, 'sixNewProducts']);;
+    Route::post('/product-basic-information',           [ProductController::class, 'productBasicInformation']);
+    Route::post('/product-description',                 [ProductController::class, 'productDescription']);
+    Route::post('/product-features',                    [ProductController::class, 'productFeatures']);
+    Route::post('/product-breadcrumb',                  [ProductController::class, 'productBreadcrumb']);
+    Route::post('/similar-products',                    [ProductController::class, 'similarProducts']);
+    Route::post('/top-six-bestseller-similar-products', [ProductController::class, 'topSixBestsellerSimilarProducts']); // USELESS!
+    Route::get('/top-six-bestseller-products',          [ProductController::class, 'topSixBestsellerProducts']); // TO BE TESTED!
+    Route::get('/top-six-discounted-products',          [ProductController::class, 'topSixDiscountedProducts']); // OK!
 
     /*##### Category routes #####*/
-    Route::post('/subcategories', [CategoryController::class, 'subCategories']);
-    Route::post('/root-category-six-new-products', [CategoryController::class, 'rootCategorySixNewProducts']);
-    Route::post('/filtered-paginated-category-products', [CategoryController::class, 'filterPaginatedcategoryProducts']);
-    Route::post('/category-filters', [CategoryController::class, 'categoryFilters']);
-    Route::post('/category-breadcrumb', [CategoryController::class, 'categoryBreadcrumb']);
+    Route::post('/subcategories',                       [CategoryController::class, 'subCategories']);
+    Route::post('/root-category-six-new-products',      [CategoryController::class, 'rootCategorySixNewProducts']);
+    Route::post('/filtered-paginated-category-products',[CategoryController::class, 'filterPaginatedcategoryProducts']);
+    Route::post('/category-filters',                    [CategoryController::class, 'categoryFilters']);
+    Route::post('/category-breadcrumb',                 [CategoryController::class, 'categoryBreadcrumb']);
 
     /*##### Banner routes #####*/
-    Route::post('/category-banners',        [BannerController::class, 'categoryBanners']);
-    Route::get('/top-three-home-banners',   [BannerController::class, 'topThreeHomeBanners']);
+    Route::post('/category-banners',                    [BannerController::class, 'categoryBanners']);
+    Route::get('/top-three-home-banners',               [BannerController::class, 'topThreeHomeBanners']);
 
     /*##### Menu routes ###*/
-    Route::get('/menu', [MenuController::class, 'menuItemsInformation']); // OK!
+    Route::get('/menu',                                 [MenuController::class, 'menuItemsInformation']); // OK!
+
+    /*##### Art routes ###*/
+    Route::post('/art-information',                     [ArtController::class,   'artInformation']); // TO BE TESTED!
 
     /*##### User routes  #####*/
     Route::middleware([ApiAuthenticationMiddleware::class])->group(function () {
@@ -193,10 +199,11 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-confirm-order',              [OrderController::class,            'confirmOrder']); // TO BE TESTED! *
         Route::post('/user-cancel-order',               [OrderController::class,            'cancelOrder']); // TO BE TESTED! *
         Route::post('/user-charge-wallet',              [WalletController::class,           'chargeWallet']);
-    });
 
-    /***| BANK ROUTES |***/
-    Route::get('/user-pasargad-payment-result',         [BankController::class,             'pasargadBankPaymentResult']); // OK!
+        /***| BANK ROUTES |***/
+        Route::post('/user-pasargad-payment-result',    [BankController::class,             'pasargadBankPaymentResult']); // TO BE TESTED!
+        Route::post('/user-pasargad-charge-result',     [BankController::class,             'pasargadBankChargeResult']); // TO BE TESTED! 
+    });   
 
     /***| SEARCH ROUTES |***/
     Route::post('/search-autocomplete',                 [SearchController::class,           'getAutocomplete']); // OK!

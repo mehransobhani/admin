@@ -26,7 +26,7 @@ class ProductController extends Controller
         }
         $productId = $request->productId;
         $product = DB::select(
-            "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+            "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
             FROM products P
             INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
             WHERE P.id = $productId AND PP.status = 1");
@@ -52,7 +52,9 @@ class ProductController extends Controller
             $productObject->productUnitCount = $product->count;
             $productObject->productUnitName = $product->prodUnite;
             $productObject->productLabel = $product->label;
+            $productObject->aparat = $product->aparat;
             $productObject->productStatus = $productStatus;
+            
             if($productStatus === -1){
                 $productObject->productPrice = 0;
                 $productObject->productBasePrice = 0;
@@ -290,6 +292,53 @@ class ProductController extends Controller
         }
         $productArray = DiscountCalculator::calculateProductsDiscount($productArray);
         echo json_encode(array('status' => 'done', 'message' => 'products found successfully', 'products' => $productArray));
+    }
+
+    public function sixTopsellerProducts(){
+        $time = time();
+        $oneWeekAgo = ($time - (604800));
+        $result = [];
+        DB::select(
+            "SELECT * FROM order_items 
+            WHERE order_id in (SELECT id FROM orders WHERE date > $oneWeekAgo AND stat NOT IN (6, 7)) "
+        );
+    }
+
+    public function topSixBestsellerProducts(Request $request){
+        
+    }
+
+    public function topSixDiscountedProducts(Request $request){
+        $time = time();
+        $discountInformation = DB::select(
+            "SELECT DDT.dependency_id , DT.id AS discountId, P.id AS productId, 
+                    PP.id AS productPackId, P.prodName_fa AS productName, 
+                    P.prodID, P.url AS productUrl, P.prodStatus, 
+                    P.prodUnite AS productUnitName, 
+                    PP.stock AS maxCount,
+                    PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS ProductLabel, 
+                    PP.count AS productUnitCount
+            FROM discount_dependencies DDT INNER JOIN discounts DT ON DT.id = DDT.discount_id INNER JOIN products P ON DDT.dependency_id = P.id INNER JOIN product_pack PP ON DDT.dependency_id = PP.product_id
+            WHERE DDT.discount_id IN (
+                SELECT D.id 
+                FROM discounts D 
+                WHERE D.type = 'product' AND 
+                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.dependency_type IN ('province', 'user', 'category')) = 0 AND 
+                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.dependency_type = 'product' ) <> 0 AND 
+                    D.reusable = 1 AND D.status = 1 AND D.neworder = 0 AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND 
+                    ((D.expiration_date IS NULL AND D.start_date IS NOT NULL AND D.start_date <= $time AND D.finish_date IS NOT NULL AND D.finish_date >= $time) OR (D.expiration_date IS NOT NULL AND $time <= D.expiration_date AND D.start_date IS NULL AND D.finish_date IS NULL)) AND 
+                    D.code IS NULL 
+            ) AND P.prodStatus = 1 AND PP.status = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock)
+            ORDER BY DT.date DESC
+            LIMIT 6"
+        );
+        if(count($discountInformation) === 0){
+            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'there is not any timered discount available', 'umessage' => 'درحال حاضر تخفیف فعالی وجود ندارد'));
+            exit();
+        }
+        
+        $discountInformation = DiscountCalculator::topSixProductsDiscountCalculator($discountInformation);
+        echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'products successfully found', 'products' => $discountInformation));
     }
 
 }

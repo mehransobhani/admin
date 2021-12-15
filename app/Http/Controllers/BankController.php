@@ -8,19 +8,33 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\WalletController;
 use stdClass;
 
 class BankController extends Controller
 {
+
+    public function insertTransaction($username, $orderId, $price, $ref, $bankRef, $type, $status, $bank){
+        $time = time();
+        DB::insert(
+            "INSERT INTO transactions ( 
+                user, order_id, price, ref, bank_ref, type, date, status, bank
+            ) VALUES (
+                '$username', $orderId, $price, '$ref', '$bankRef', '$type', $time, $status, '$bank'
+            )"
+        );
+    }
+
     public function pasargadBankPaymentResult(Request $request){
         if(!isset($request->iD) || !isset($request->iN) || !isset($request->tref)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
             exit();
         }
         $userId = $request->userId;
-        $user = DB::select("SELECT * FROM users WHERE id = $request->userId LIMIT 1");
+        echo $userId;
+        $user = DB::select("SELECT * FROM users WHERE id = $userId LIMIT 1");
         $user = $user[0];
-        $orderId = 202159;
         $iN = $request->iN;
         $iD = $request->iD;
         $tref = $request->tref;
@@ -44,6 +58,7 @@ class BankController extends Controller
             exit();
         }
         $response = json_decode($response);
+        
         if($response->IsSuccess === false){
             echo json_encode(array('status' => 'done', 'successfulPayment' => false, 'message' => 'payment was not successful', 'umessage' => 'پرداخت موفقیت آمیز نبود'));
             exit();
@@ -51,23 +66,17 @@ class BankController extends Controller
         $orderId = intval($response->InvoiceNumber);
         $amount = intval($response->Amount) / 10;
         $traceNumber = $response->TraceNumber . "";
-        $queryResult = DB::insert(
-            "INSERT INTO transaciton (
-                user, order_id, 
-                price, ref, 
-                bank_ref, type, 
-                date, status, bank
-            ) VALUES (
-                '$user->username', $orderId, 
-                $amount, '$traceNumber', 
-                '$response->TransactionReferenceID', 'order', 
-                $time, 0, 'pasargad'
-            )"
+        $this->insertTransaction(
+            $user->username, 
+            $orderId, 
+            $amount,
+            $traceNumber,
+            $tref,
+            'order',
+            0,
+            'pasargad'
         );
-        if(!$queryResult){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not insert a transaction log', 'umessage' => 'خطا در ثبت اطلاعات تراکنش'));
-            exit();
-        }
+        $orderController = new OrderController();
 
         $order = DB::select(
             "SELECT * 
@@ -83,21 +92,16 @@ class BankController extends Controller
             echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'manipulated' => false, 'message' => 'user had paid this order before', 'umessage' => 'کاربر در گذشته این پرداخت را انجام داده است'));
             exit();
         }
-        $queryResult = DB::update(
+        DB::update(
             "UPDATE orders 
             SET stat = 1
             WHERE id = $orderId"
         );
-        if(!$queryResult){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'an error occured while updating the order status', 'umessage' => 'خطا هنگام بروزرسانی وضعیت سفارش'));
-            exit();
-        }
         $orderItems = DB::select(
             "SELECT * 
             FROM order_items 
             WHERE order_id = $orderId"
         );
-
         if(count($orderItems) === 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not find users order items', 'umessage' => 'خطا در یافتن اطلاعات سفارش'));
             exit();
@@ -107,77 +111,40 @@ class BankController extends Controller
         $packDescripiton = "کاهش موجودی به دلیل ثبت سفارش مشتری";
 
         foreach($orderItems as $orderItem){
-            DB::insert(
-                "INSERT INTO product_stock ( 
-                    product_id, user, 
-                    user_id, stock, 
-                    date, order_id, 
-                    kind, description, anbar_id, 
-                    changed_count
-                )
-                VALUES (
-                    $orderItem->product_id, '$user->username', 
-                    $user->id, ((SELECT stock FROM products WHERE id = $orderItem->product_id) - ($orderItem->count * $orderItem->pack_count)), 
-                    $time, $orderId, 
-                    6, '$productDescription', 0, (-1 * $orderItem->count * $orderItem->pack_count)
-                )"
+            //$productId, $username, $userId, $changedStock, $orderId, $kind, $description, $anbarId, $factorId, $newFactorId, $changedCount
+            $orderController->manipulateProductAndLog(
+                $orderItem->product_id, 
+                $user->username, 
+                $userId, 
+                (-1 * $orderItem->count * $orderItem->pack_count), 
+                $orderId, 
+                6, 
+                $productDescription,
+                0,
+                "NULL",
+                "NULL",
+                (-1 * $orderItem->count * $orderItem->pack_count)
             );
-            DB::update(
-                "UPDATE products 
-                SET stock = (stock - ($orderItem->count * $orderItem->pack_count)) 
-                WHERE id = $orderItem->product_id"
-            );
-            DB::insert(
-                "INSERT INTO pack_stock_log (
-                    pack_id, user_id,
-                    stock, changed_count, 
-                    kind, description, 
-                    order_id, date
-                ) VALUES (
-                    $orderItem->pack_id, $user->id, 
-                    (SELECT stock FROM products WHERE id = $orderItem->product_id), (-1 * $orderItem->count * $orderItem->pack_count), 
-                    2, '$packDescripiton',
-                    $orderId, $time
-                )"
-            );
-            DB::update(
-                "UPDATE product_pack 
-                SET stock = stock - $orderItem->count 
-                WHERE product_id = $orderItem->product_id" 
+            $orderController->manipulatePackAndLog(
+                $orderItem->pack_id,
+                $userId,
+                $orderItem->count, $orderItem->pack_count,
+                2,
+                $packDescripiton,
+                $orderId, 
+                "NULL"
             );
         }
-
-        $desc = "پرداخت بانکی و کم شدن بخشی از هزینه با استفاده از موجودی";
-        $resultStatus = DB::insert(
-            "INSERT INTO users_stock 
-                (stock, username, 
-                user_id, changer, 
-                order_id, `desc`, 
-                changed_count, 
-                type, date) 
-            VALUES 
-                ($user->stock - $order->used_stock_user, '$user->username', 
-                $user->id, '$user->username', 
-                $orderId, '$desc', 
-                (-1 * $order->used_stock_user), 6, $time)"
-        );
-        if(!$resultStatus){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not insert a new user stock log', 'umessage' => 'خطا در ثبت درخواست استفاده از موجودی حساب کاربری'));
-            exit();
+        $orderController->updateOrderStatus($orderId, 1);
+        if($order->used_stock_user !== 0){
+            $desc = "پرداخت بانکی و کم شدن بخشی از هزینه با استفاده از موجودی";
+            $orderController->updateUserStockAndLog($user->username, $userId, $user->username, $orderId, $desc, (-1 * $order->used_stock_user), 6);
         }
-        $resultStatus = DB::update(
-            "UPDATE users SET stock = $order->used_stock_user WHERE id = $user->id"
-        );
-        if(!$resultStatus){
-            echo json_encode(array('status' => 'failed', 'message' => 'could not update users stock value', 'umessage' => 'خطا هنگام بروزرسانی موجودی حساب کاربری'));
-            exit();
-        }
-        
         echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber));
         exit();
     }
 
-    public function bankChargeResult (Request $request){
+    public function pasargadBankChargeResult (Request $request){
         if(!isset($request->iD) || !isset($request->iN) || !isset($request->tref)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
             exit();
@@ -214,48 +181,27 @@ class BankController extends Controller
         }
         $ref = intval($response->InvoiceNumber);
         $amount = intval($response->Amount) / 10;
-        $traceNumber = $response->TraceNumber . "";
-        $result = DB::select(
+        
+        $usersTrans = DB::select(
             "SELECT * 
             FROM users_trans 
-            WHERE ref = '$ref' AND user_id = $userId AND kind = 1 AND status = 0 
+            WHERE ref = '$ref' AND user_id = $userId 
             LIMIT 1 "
         );
-        if(count($result) !== 1){
-            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'payment was successful', 'umessage' => 'پرداخت موفقیت آمیز بود'));
+        if(count($usersTrans) === 0){
+            echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'message' => 'could not find users request', 'umessage' => 'درخواست اولیه کاربر یافت نشد'));
             exit();
         }
-        $transId = $result[0]->id;
-        $queryResult = DB::update(
-            "UPDATE users_trans 
-            SET status = 1, ref_id = '$tref' 
-            WHERE id = $transId"
-        );
-        if(!$queryResult){
-            echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'message' => 'error while updating user transaction state', 'umessage' => 'خطا هنگام بروزرسانی اولیه اطلاعات پرداخت'));
+        $usersTrans = $usersTrans[0];
+        if($usersTrans->status === 1){
+            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'users request had been confirmed before', 'umessage' => 'درخواست کاربر در گذشته تایید شده بود'));
             exit();
         }
+        $walletController = new WalletController();
+        $walletController->updateWalletChargeRequestStatus(1, $tref, $usersTrans->id);
         $description = 'افزایش موجودی با شارژ حساب';
-        $queryResult = DB::insert(
-            "INSERT INTO users_stock (
-                stock, username, user_id, changer, order_id, desc, changed_count, type, date
-            ) VALUES (
-                ($user->user_stock + $amount), '$user->username', $userId, '$user->username', 0, '$description', $amount, 1, $time
-            )"
-        );
-        if(!$queryResult){
-            echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'c', 'source' => 'c', 'message' => 'an error occured while inserting new user stock log', 'umessage' => 'خطا هنگام ایجاد سند پرداخت کاربر'));
-            exit();
-        }
-        $queryResult = DB::update(
-            "UPDATE users 
-            SET user_stock = $amount + $user->user_stock 
-            WHERE id = $userId"
-        );
-        if(!$queryResult){
-            echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'source' => 'c', 'message' => 'an error occured while updating users stock value', 'umessage' => 'خطا هنگام بروزرسانی حساب کاربر'));
-            exit();
-        }
-        echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'source' => 'c', 'message' => 'users account successfully charged'));
+        $walletController->updateUserStockAndLog($user->username, $userId, $user->username, 0, $description, $amount, 1);
+        
+        echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'source' => 'c', 'message' => 'users account successfully charged', 'umessage' => 'شارژ حساب کاربری با موفقیت انجام شد'));
     }
 }

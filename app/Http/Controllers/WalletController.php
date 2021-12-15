@@ -193,7 +193,22 @@ class WalletController extends Controller
         }
     }
 
-    public function walletChargingResult(Request $request){
-
+    public function updateWalletChargeRequestStatus($status, $tref, $id){
+        DB::update(
+            "UPDATE users_trans 
+            SET status = $status, ref_id = '$tref' 
+            WHERE id = $id"
+        );
+    }
+    public function updateUserStockAndLog($username, $userId, $changer, $orderId, $desc, $changedCount, $type){
+        $time = time();
+        DB::insert(
+            "INSERT INTO users_stock (
+                stock, username, user_id, changer, order_id, `desc`, changed_count, type, date
+            ) VALUES (
+                ((SELECT user_stock from users WHERE id = $userId) + $changedCount), '$username', $userId, '$changer', '$orderId', '$desc', $changedCount, $type, $time
+            )"
+        );
+        DB::update("UPDATE users SET user_stock = (user_stock + $changedCount) WHERE id = $userId");
     }
 }

@@ -1127,4 +1127,36 @@ class DiscountCalculator{
         $response->discountMaxPrice = $discount->max_price;
         return $response;
     }
+
+    public static function topSixProductsDiscountCalculator($productArray){
+        $time = time();
+        foreach($productArray as $product){
+            $discount = DB::select(
+                "SELECT * FROM discounts WHERE id = $product->discountId LIMIT 1"
+            );
+            if(count($discount) === 0){
+                continue;
+            }
+            $discount = $discount[0];
+            $discountPrice = 0;
+            if($discount->price !== NULL){
+                $discountPrice += $discount->price;
+            }else if($discount->percent !== NULL){
+                $dp = $discount->percent * $product->productPrice / 100;
+                if($discount->max_price !== NULL && $dp > $discount->max_price){
+                    $dp = $discount->max_price;
+                }
+                $discountPrice = $dp - $dp % 50;
+            }
+            $product->productDiscountedPrice = $product->productPrice - $discountPrice;
+            $product->productDiscountPercent = ceil($discountPrice * 100 / $product->productPrice);
+            $product->timeLeft = 0;
+            if($discount->expiration_date !== NULL){
+                $product->timeLeft = $discount->expiration_date - $time;
+            }else if($discount->finish_date !== NULL){
+                $product->timeLeft = $discount->finish_date = $time;
+            }
+        }
+        return $productArray;
+    }
 }
