@@ -18,7 +18,8 @@ class ArtController extends Controller
         $time = time();
         $artUrl = $request->url;
         $result = DB::select(
-            "SELECT AP.title, AP.img AS image, AP.description, A.artName AS name, A.catID AS categoryId, AP.art_id FROM art_page AP INNER JOIN arts A ON AP.art_id = A.id
+            "SELECT AP.title, AP.img AS image, AP.description, A.artName AS name, A.catID AS categoryId, AP.art_id, C.url AS categoryUrl FROM art_page AP INNER JOIN arts A ON AP.art_id = A.id
+            INNER JOIN category C ON C.id = A.catID 
             WHERE AP.url_fa = '$artUrl' OR AP.url = '$artUrl' LIMIT 1"
         );
         if(count($result) === 0){
@@ -57,7 +58,7 @@ class ArtController extends Controller
             array_push($sixNewProducts, $productObject);
         }
         if(sizeof($sixNewProducts) !== 0){
-            $sixNewProducts = DiscountCalculator::calculateProductsDiscount($sixNewProducts);
+            $sixNewProducts = DiscountCalculator::calculateProductsDiscount($sixNewProducts);   
         }
         $result->banners = $banners;
         $result->topSixProducts = $sixNewProducts;
