@@ -18,7 +18,7 @@ class BankController extends Controller
     public function insertTransaction($username, $orderId, $price, $ref, $bankRef, $type, $status, $bank){
         $time = time();
         DB::insert(
-            "INSERT INTO transactions ( 
+            "INSERT INTO `transaction` ( 
                 user, order_id, price, ref, bank_ref, type, date, status, bank
             ) VALUES (
                 '$username', $orderId, $price, '$ref', '$bankRef', '$type', $time, $status, '$bank'
@@ -66,6 +66,18 @@ class BankController extends Controller
         $orderId = intval($response->InvoiceNumber);
         $amount = intval($response->Amount) / 10;
         $traceNumber = $response->TraceNumber . "";
+        $order = DB::select(
+            "SELECT * FROM orders WHERE id = $orderId"
+        );
+        if(count($order) === 0){
+            echo json_encode(array('status' => 'failed', 'successfulPayment' => true, 'source' => 'c', 'message' => 'order not found', 'umessage' => 'سفارش موردنظر یافت نشد'));
+            exit();
+        }
+        $order = $order[0];
+        if($order->stat !== 6){
+            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'source' => 'c', 'message' => 'order had been confirmed', 'umessage' => 'سفارش تایید شده بود'));
+            exit();
+        }
         $this->insertTransaction(
             $user->username, 
             $orderId, 
@@ -78,25 +90,6 @@ class BankController extends Controller
         );
         $orderController = new OrderController();
 
-        $order = DB::select(
-            "SELECT * 
-            FROM orders 
-            WHERE id = $orderId LIMIT 1 "
-        );
-        if(count($order) === 0){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not find user order', 'umessage' => 'سفارش کاربر یافت نشد'));
-            exit();
-        }
-        $order = $order[0];
-        if($order->stat !== 6){
-            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'manipulated' => false, 'message' => 'user had paid this order before', 'umessage' => 'کاربر در گذشته این پرداخت را انجام داده است'));
-            exit();
-        }
-        DB::update(
-            "UPDATE orders 
-            SET stat = 1
-            WHERE id = $orderId"
-        );
         $orderItems = DB::select(
             "SELECT * 
             FROM order_items 
@@ -140,6 +133,7 @@ class BankController extends Controller
             $desc = "پرداخت بانکی و کم شدن بخشی از هزینه با استفاده از موجودی";
             $orderController->updateUserStockAndLog($user->username, $userId, $user->username, $orderId, $desc, (-1 * $order->used_stock_user), 6);
         }
+        $orderController->updateUserOrderCountAndTotalBuy($userId,(($order->total_items + $order->shipping_cost) - ($order->off + $order->shipping_price_off)),1);
         echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber));
         exit();
     }

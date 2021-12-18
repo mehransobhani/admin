@@ -142,171 +142,20 @@ Route::get('/check-test', function(){
     }
 });
 
-Route::get('/sign', function(){
-    include('../app/Classes/payment/pasargad/RSAProcessor.php');
-    $privateKey = '<RSAKeyValue><Modulus>u9QiaSVNXNcO2Ist3TJOPLKhNsV84FVNByhctGGWDpUhwrTx7x1gc+HM8PCnDTXHpmPzo08yQNqt0gjFPHjo1zitu4DIWilOmYeMNXRYYpn5mmZiBlCIkw7z7mc0kPoVLAdExk6FU0R8q8cy5xREbJpEfvLm+aj5Y+BtfPLokm0=</Modulus><Exponent>AQAB</Exponent><P>6iKdX28GXw5KjbthcCwnX9+NvFJuZ1Nn4uLUEAw0j/3eM3Zp5Fg97FJILBoXlU8pPQKj8h+YESD6UBp1eqHDQw==</P><Q>zV58S6HN/IVgDFxG72o13a57gpTBOV+KEFF88R8s5+mhDyLzD4s8Vf/IJfV3xcJeOckKMleMAYE9JlKYnTmAjw==</Q><DP>xZsRV0pNBkz5f0V2p0Wctb3n0dmAdJRgSY1HjYO/mQeaUbTPCnmvSZTodNBQtyNomqVv2RnxLgO3P4QVQrrkIQ==</DP><DQ>eZHEDFV1BVXCvK5nQ1RhHKAr9umt1BOtO+mxB19ICuSu9bHfpkTq65GlXmsHgqaDdrt+cLyIYV+q3iOoufGPGw==</DQ><InverseQ>ElTK3vHaTTYISddW9YQPOZlEWB7A/Xn3oV+y5SDPg3vAOegmhNGrE9qekJB1XaIgqCLTU6A71NXLhDOBrDHNcw==</InverseQ><D>jEsT9MN2+Gxt21KBzGFBzNaD0fxKnOk54qnELLtjMLs1f1BWEQs5OvUidajareRInsCzf3ytBYIRKPuCDvwktSyJ4MtYC+oxwTq9vo8NqKFyevYpK2gkwfSO+Ar5u3GZmh1ABy46C3QxzPH+lwxutnX7TMOVBs0HidYXQrX9R4U=</D></RSAKeyValue>';
-    $pk = '<RSAKeyValue><Modulus>u9QiaSVNXNcO2Ist3TJOPLKhNsV84FVNByhctGGWDpUhwrTx7x1gc+HM8PCnDTXHpmPzo08yQNqt0gjFPHjo1zitu4DIWilOmYeMNXRYYpn5mmZiBlCIkw7z7mc0kPoVLAdExk6FU0R8q8cy5xREbJpEfvLm+aj5Y+BtfPLokm0=</Modulus><Exponent>AQAB</Exponent><P>6iKdX28GXw5KjbthcCwnX9+NvFJuZ1Nn4uLUEAw0j/3eM3Zp5Fg97FJILBoXlU8pPQKj8h+YESD6UBp1eqHDQw==</P><Q>zV58S6HN/IVgDFxG72o13a57gpTBOV+KEFF88R8s5+mhDyLzD4s8Vf/IJfV3xcJeOckKMleMAYE9JlKYnTmAjw==</Q><DP>xZsRV0pNBkz5f0V2p0Wctb3n0dmAdJRgSY1HjYO/mQeaUbTPCnmvSZTodNBQtyNomqVv2RnxLgO3P4QVQrrkIQ==</DP><DQ>eZHEDFV1BVXCvK5nQ1RhHKAr9umt1BOtO+mxB19ICuSu9bHfpkTq65GlXmsHgqaDdrt+cLyIYV+q3iOoufGPGw==</DQ><InverseQ>ElTK3vHaTTYISddW9YQPOZlEWB7A/Xn3oV+y5SDPg3vAOegmhNGrE9qekJB1XaIgqCLTU6A71NXLhDOBrDHNcw==</InverseQ><D>jEsT9MN2+Gxt21KBzGFBzNaD0fxKnOk54qnELLtjMLs1f1BWEQs5OvUidajareRInsCzf3ytBYIRKPuCDvwktSyJ4MtYC+oxwTq9vo8NqKFyevYpK2gkwfSO+Ar5u3GZmh1ABy46C3QxzPH+lwxutnX7TMOVBs0HidYXQrX9R4U=</D></RSAKeyValue>';
-    $parameters = [
-        'InvoiceNumber' => '15',
-        'InvoiceDate' => date('Y/m/d H:i:s'),
-        'TerminalCode' => 1664157,
-        'MerchantCode' => 4483845,
-        'Amount' => 10000,
-        'RedirectAddress' => 'https://hoanri.com/bank-result',
-        'Timestamp' => date('Y/m/d H:i:s'),
-        'Action' => 1003,
-    ];
-    $jsonData = json_encode($parameters, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-    $data = $jsonData;
-    $processor = new RSAProcessor();
-    $data = sha1($data, true);
-    $data = $processor->sign($data);
-    $sign = base64_encode($data);
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-    curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/GetToken');
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-    'Content-Type: application/json',
-    'Sign: ' . $sign,
-    'Content-Length: ' . strlen($jsonData)
-    ));
-    $response = curl_exec ($ch);
-    curl_close ($ch);
-    var_dump($response);
+Route::get('/test-string', function(){
+    $url = 'zivar_alat/zivsralat_rezini/rezin';
+    $urlArray = str_split($url);
+    $urlKey = '';
+    for($i=strlen($url) - 1; $i>=0 ; $i--){
+        if($urlArray[$i] === '/'){
+            break;
+        }
+    }
+    echo substr($url, -1 * (strlen($url) - $i - 1));
 });
 
-Route::get('/bank-result', function(){
-    $data = [
-        'transactionReferenceID' => '637744679509156740'
-    ];
-    $jsonData = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-    curl_setopt($ch, CURLOPT_URL, 'https://pep.shaparak.ir/Api/v1/Payment/CheckTransactionResult');
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-    'Content-Type: application/json',
-    //'Sign: ' . $sign,
-    'Content-Length: ' . strlen($jsonData)
-    ));
-    $response = curl_exec ($ch);
-    var_dump($response);
-    curl_close ($ch);
-});
 
-Route::get('/search-auth', function(){
-    $authUrl = 'http://search.honari.com/api/v1/account/login';
-    $params = ['username' => 'admin', 'password' => 'pSHGDgKHP'];
-    $ch = curl_init($authUrl);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . '',
-        //'Content-Length: ' . strlen($jsonData)
-    ));
-    $result = curl_exec($ch);
-    $err = curl_error($ch);
-    var_dump($result);
-});
 
-Route::get('/search-auto', function(){
-    //$url = self::$BASE_URL . self::$AUTO_COMPLETE_URL . '/?apiToken='.self::$PRODUCT_API_TOKEN.'&query=' . urlencode($query);
-    //$response = $this->CallApi($url,[],true,1,'GET');
-    $query = 'منجوق';
-    $autoCompleteUrl = 'http://search.honari.com/api/v1/management/search/autocomplete/?apiToken=21bb3b6e-0f96-4718-8d6c-8f03a538927e&query=' . urlencode($query);
-    $ch = curl_init($autoCompleteUrl);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-    //curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . '',
-        //'Content-Length: ' . strlen($jsonData)
-    ));
-    $result = curl_exec($ch);
-    var_dump($result);
-});
 
-Route::get('/search-category', function(){
-    // {"name":"product_price","min":"12000","max":"100000","values":[]
-    // {"name":"جنس نخ","min":null,"max":null,"values":["پنبه ای","مصنوعی"]}
-    $facet = new stdClass();
-    $facet->name = 'product_price';
-    $facet->min = null;
-    $facet->max = null;
-    $facet->values = [];
 
-    $data = [
-        'category' => 'تریشه چرم دوزی',
-        'facets' =>[
-            $facet
-        ],
-        'indexName' => 'products',
-        'query' => null,
-        'page' => 2,
-        'size' => 12,
-        'sort' => 'has_stock'
-    ];
-
-    $data = json_encode($data);
-    
-    //$query = 'منجوق';
-    $url = 'http://search.honari.com/api/v1/management/search/searchWithCategory';
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        'Content-Type: application/json',
-        //'Authorization: Bearer ',
-        //'Content-Length: ' . strlen($jsonData)
-    ));
-    $result = curl_exec($ch);
-    $result = json_decode($result);
-    var_dump($result);
-    exit();
-    echo json_encode(array('status' => 'done', 'result' => $result));
-});
-
-Route::get('/search-result', function(){
-    /*
-        $url = self::$BASE_URL . self::$SEARCH_URL . '/?apiToken='.self::$PRODUCT_API_TOKEN.'&query=' . urlencode($query) . '&page=' . $page . '&size=' . $size . '&sort=' . $this->sort;
-        $response = $this->CallApi($url,[],true,1,'GET');
-    */
-    //$url = 'http://search.honari.com/api/v1/management/search/searchWithCategory';
-    $query = urlencode('منج');
-    $url = 'http://search.honari.com/api/v1/management/search/search/?apiToken=21bb3b6e-0f96-4718-8d6c-8f03a538927e&query=' . $query . '&page=1&size=12&sort=has_stock';
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-    //curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        'Content-Type: application/json',
-        //'Authorization: Bearer ',
-        //'Content-Length: ' . strlen($jsonData)
-    ));
-    $result = curl_exec($ch);
-    $result = json_decode($result);
-    var_dump($result);
-    exit();
-    echo json_encode(array('status' => 'done', 'result' => $result));
-});

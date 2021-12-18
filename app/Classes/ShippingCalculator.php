@@ -16,11 +16,11 @@ class ShippingCalculator{
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
             return NULL;
         }
-        if($serviceId === 1){
+        if($serviceId === 11){
             $price = 12000;
-        }else if($serviceId === 2){
+        }else if($serviceId === 12){
             $price = 15000;
-        }else if($serviceId === 3){
+        }else if($serviceId === 14){
             $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$addressPack->province'");
             if(count($provinceId) == 0){
                 echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'province could not be found', 'umessage' => 'استان کاربر یافت نشد'));

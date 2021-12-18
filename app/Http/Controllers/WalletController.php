@@ -179,7 +179,7 @@ class WalletController extends Controller
             'InvoiceNumber' => $ref,
             'InvoiceDate' => date('Y/m/d H:i:s'),
             'Amount' => $price * 10,
-            'RedirectAddress' => 'https://honari.com/charge_result/pasargad',
+            'RedirectAddress' => 'https://honari.com/newtest/payment-result/charge/pasargad',
             'Timestamp' => date('Y/m/d H:i:s'),
         ];
         $result = $pasargad->createPaymentToken($parameters);

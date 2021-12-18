@@ -148,11 +148,11 @@ class DeliveryServiceController extends Controller
                     $userHasLocation = true;
                 }
             }
-            if($userHasLocation === true && $service->id == 1){
+            if($userHasLocation === true && $service->id == 11){
                 $locationAllowed = $this->checkLocationForTehranPeyk($user->lat, $user->lng);
-            }else if($userHasLocation === true && $service->id == 2){
+            }else if($userHasLocation === true && $service->id == 12){
                 $locationAllowed = $this->checkLocationForKarajPeyk($user->lat, $user->lng);
-            }else if($service->id == 3){
+            }else if($service->id == 14){
                 $locationAllowed = true;
             }
             if($userHasLocation === true && $locationAllowed === false){
@@ -162,11 +162,11 @@ class DeliveryServiceController extends Controller
             $s->id = $service->id;
             $s->ename = $service->name;
             $s->fname = $service->fa_name;
-            if($service->id === 1){
+            if($service->id === 11){
                 $s->price = 12000;
-            }else if($service->id == 2){
+            }else if($service->id == 12){
                 $s->price = 15000;
-            }else if($service->id == 3){
+            }else if($service->id == 14){
                 
                 $pricePlans = DB::select("SELECT * FROM delivery_service_plans WHERE city_id = $cityId OR province_id = $provinceId ORDER BY min_weight ASC");
                 if(count($pricePlans) == 0){
@@ -279,7 +279,7 @@ class DeliveryServiceController extends Controller
             exit();
         }
         $deliveryServiceId = $request->deliveryServiceId;
-        if($deliveryServiceId != 1 && $deliveryServiceId != 2){
+        if($deliveryServiceId != 11 && $deliveryServiceId != 12){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong delivery service', 'umessage' => 'سرویس ارسال انتخابی غلط است'));
             exit();
         }
@@ -365,7 +365,7 @@ class DeliveryServiceController extends Controller
             echo json_encode(array('status' => 'done', 'message' => 'new values successfully inserted'));
         }else{
             $activeTemporaryInformation = $activeTemporaryInformation[0];
-            $expirationDate = $time + (15 * 60);
+            $expirationDate = $time + (30 * 60);
             $updateResult = DB::update(
                 "UPDATE delivery_service_temporary_information
                 SET service_id = $serviceId, work_time = $workTime, work_time_id = $workTimeId, expiration_date = $expirationDate
@@ -394,7 +394,7 @@ class DeliveryServiceController extends Controller
             exit();
         }
         $availableSelectedService = $availableSelectedService[0];
-        if(($availableSelectedService->service_id == 1 ||$availableSelectedService->service_id == 2) && $availableSelectedService->work_time == 0){
+        if(($availableSelectedService->service_id == 12 ||$availableSelectedService->service_id == 12) && $availableSelectedService->work_time == 0){
             echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'user have not chosen a work time for the selected delivery service'));
             exit();
         }

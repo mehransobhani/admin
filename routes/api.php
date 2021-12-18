@@ -201,9 +201,10 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-charge-wallet',              [WalletController::class,           'chargeWallet']);
 
         /***| BANK ROUTES |***/
-        Route::post('/user-pasargad-payment-result',    [BankController::class,             'pasargadBankPaymentResult']); // TO BE TESTED!
+       
         Route::post('/user-pasargad-charge-result',     [BankController::class,             'pasargadBankChargeResult']); // TO BE TESTED! 
     });   
+    Route::get('/user-pasargad-payment-result',    [BankController::class,             'pasargadBankPaymentResult']); // TO BE TESTED!
 
     /***| SEARCH ROUTES |***/
     Route::post('/search-autocomplete',                 [SearchController::class,           'getAutocomplete']); // OK!

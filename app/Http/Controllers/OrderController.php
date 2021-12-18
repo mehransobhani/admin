@@ -105,7 +105,7 @@ class OrderController extends Controller
         }
         $order = $order[0];
         $orderItems = DB::select(
-                        "SELECT P.id AS product_id, P.prodName_fa, P.prodUnite, P.prodID, P.url, OI.pack_name, OI.count, OI.pack_count, OI.price, OI.off, OI.sell_price, OI.tax_price, OI.duty_price 
+                        "SELECT P.id AS productId, P.prodName_fa AS productName, P.prodUnite AS productUnit, P.prodID, P.url, OI.pack_name AS packName, OI.count, OI.pack_count AS packCount, OI.price AS basePrice, OI.off AS discount, OI.sell_price AS sellPrice, OI.tax_price AS taxPrice, OI.duty_price AS dutyPrice 
                         FROM order_items OI INNER JOIN products P ON OI.product_id = P.id
                         WHERE OI.order_id = $orderId 
                         ORDER BY OI.id ASC"
@@ -122,52 +122,18 @@ class OrderController extends Controller
             );
             exit();
         }
-        $responseArray = [];
-        foreach($orderItems as $oi){
-            $tax = 0;
-            $duty = 0;
-            $sell = 0;
-            if($oi->sell_price != null && $oi->sell_price != 0){
-                $sell = $oi->sell_price;
-            }else{
-                $sell = (91.75 * $oi->sell_price / 100);
-            }
-            if($oi->tax_price != null && $oi->tax_price != 0){
-                $tax = $oi->tax_price;
-            }else{
-                $tax = 6 * $sell / 100; 
-            }
-            if($oi->duty_price != null && $oi->duty_price != 0){
-                $duty = $oi->duty_price;
-            }else{
-                $duty = 3 * $sell / 100;
-            }
-            array_push($responseArray, array(
-                'productId' => $oi->product_id,
-                'productName' => $oi->prodName_fa,
-                'productUnit' => $oi->prodUnite,
-                'prodID' => $oi->prodID,
-                'url' => $oi->url,
-                'packName' => $oi->pack_name,
-                'count' => $oi->count,
-                'packCount' => $oi->pack_count,
-                'basePrice' => $oi->price,
-                'discount' => $oi->off,
-                'sellPrice' => $sell,
-                'taxPrice' => $tax,
-                'dutyPrice' => $duty
-            ));
-        }
-        $paidPrice = 0;
-        $transactionRecord = DB::select("SELECT * FROM transaction WHERE user = $user->username AND order_id = $orderId");
+        $totalPrice = $order->total_items + $order->shipping_cost;
+        $totalDiscount = $order->off + $order->shipping_price_off;
+        /*$transactionRecord = DB::select("SELECT * FROM transaction WHERE user = $user->username AND order_id = $orderId");
         $walletRecord = DB::select("SELECT * FROM users_stock WHERE user_id = $userId AND order_id = $orderId AND type = 6");
         if(count($transactionRecord) !== 0){
             $paidPrice += $transactionRecord[0]->price;
         }
         if(count($walletRecord) !== 0){
             $paidPrice -= $walletRecord[0]->changed_count;
-        }
-        echo json_encode(array('status' => 'done', 'found' => true, 'orderStatus' => $order->stat, 'paidPrice' => $paidPrice, 'orderItems' => $responseArray, 'message' => 'order items successfully found'));
+        }*/
+
+        echo json_encode(array('status' => 'done', 'found' => true, 'orderStatus' => $order->stat, 'totalPrice' => $totalPrice, 'totalDiscount' => $totalDiscount, 'orderItems' => $orderItems, 'message' => 'order items successfully found'));
     }
 
     // @route: /api/user-order-details <--> @middleware: UserAuthenticationMiddleware
@@ -284,7 +250,7 @@ class OrderController extends Controller
                     $totalWeight += $productInfo->prodWeight;
                 }
                 if($productInfo->buyPrice !== NULL){
-                    $totalBuyPrice += ($productInfo->count * ($productInfo->buyPrice * $productInfo->productUnitCount));
+                    $totalBuyPrice += ($productInfo->count * ($productInfo->buyPrice * $productInfo->count));
                 }
             }
         }
@@ -315,7 +281,6 @@ class OrderController extends Controller
                 echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'gift code is not valid', 'umessage' => 'برخی از کدهای وارد شده صحیح نمیباشند'));
                 exit();
             }else{
-                var_dump($codeValicationResult);
                 array_push($allDiscountIds, $codeValicationResult->discountId);
                 if($codeValicationResult->discountType === 'order'){
                     if($codeValicationResult->discountPrice !== NULL){
@@ -360,9 +325,9 @@ class OrderController extends Controller
                 }
             }
         }
-        $totalPrice = $orderDiscountedPrice + $shippingDiscountedPrice;
         
-        $orderInsertionResult = DB::insert(
+        /***| insert order information into 'order_info' table |***/
+        DB::insert(
             "INSERT INTO order_info
             (fname, lname, 
                 city_id, postal_code, 
@@ -380,10 +345,7 @@ class OrderController extends Controller
                 $deliveryTemporaryInformation->work_time, 0,  $totalWeight, 0, 0, 'cancel', '', '', 0, 
                 $deliveryTemporaryInformation->work_time_id, $user->lat, $user->lng )"
         );
-        if(!$orderInsertionResult){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not add order info', 'umessage' => 'خطا در ذخیره سازی اطلاعات سفارش'));
-            exit();
-        }
+        
         $infoId = DB::select("SELECT id FROM order_info WHERE mobile = $user->mobile ORDER BY id DESC LIMIT 1");
         if(count($infoId) === 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not get latest info id', 'umessage' => 'خطا در گرفتن اطلاعات سفارش ذخیره شده'));
@@ -462,11 +424,12 @@ class OrderController extends Controller
             exit();
         }
         foreach($allDiscounts->cart as $cp){
+             /***| INSERT ORDER ITEMS INFORMATION |***/
             $off = $cp->productPrice - $cp->discountedPrice;
             $taxPrice = round($cp->productPrice / 109 * 100 * 6 / 100);
             $dutyPrice = round($cp->productPrice / 109 * 100 * 3 / 100);
             $sellPrice = $cp->productPrice - ($taxPrice + $dutyPrice);
-            $orderItemsInsertionResults = DB::insert(
+            DB::insert(
                 "INSERT INTO order_items
                     (product_id, count, 
                     pack_id, pack_count, pack_name, 
@@ -482,161 +445,103 @@ class OrderController extends Controller
                     $orderId, 0, $sellPrice, 
                     $taxPrice, $dutyPrice)"
             );
-            if(!$orderItemsInsertionResults){
-                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not enter the order item', 'umessage' => 'خطا هنگام ذخیره موارد سفارش'));
-                exit();
-            }
-        }
-        if(($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser === 0){
-            $time = time();
-            $resultStatus = DB::update(
-                "UPDATE orders 
-                SET stat = 1 
-                WHERE id = $orderId"
-            );
-            if(!$resultStatus){
-                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not update order status', 'umessage' => 'خطا هنگام بروزرسانی وضعیت سفارش'));
-                exit();
-            }
-            $stockDeficit = $user->user_stock - $usedStockUser;
-            $logStock = -1 * $usedStockUser;
-            $desc = "پرداخت تمام هزینه با استفاده از موجودی";
-            $resultStatus = DB::insert(
-                "INSERT INTO users_stock 
-                    (stock, username, 
-                    user_id, changer, 
-                    order_id, `desc`, 
-                    changed_count, 
-                    type, date) 
-                VALUES 
-                    ($stockDeficit, '$user->username', 
-                    $user->id, '$user->username', 
-                    $orderId, '$desc', 
-                    $logStock, 6, $time)"
-            );
-            if(!$resultStatus){
-                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not create a new log for user stocks', 'umessage' => 'خطا هنگام ایجاد لاگ تغییر موجودی کاربر'));
-                exit();
-            }
-            $resultStatus = DB::update(
-                "UPDATE users 
-                SET user_stock = $stockDeficit 
-                WHERE id = $user->id"
-            );
-            if(!$resultStatus){
-                echo json_encode(array('status' => 'failed', 'message' => 'could not update users wallet', 'umessage' => 'خطا در بروزرسانی کیف پول حساب کاربری'));
-                exit();
-            }
-            
-            foreach($cartProducts as $cp){
-                /* product stock logs */
-                $productDescription = "کاهش موجودی فروش محصول از نوع پرداخت با موجودی";
-                $packDescripiton = "کاهش موجودی به دلیل ثبت سفارش مشتری";
-                $newProductStock = $cp->productStock - ($cp->productCount * $cp->productUnitCount);
-                $newPackStock = $cp->packStock - $cp->productCount;
+
+            if($cp->productPrice !== $cp->discountedPrice){
+                /***| INSERT DISCOUNT INFORMATION OF THE PRODUCTS WHICH THEIR PRICE REDUCED BECAUSE OF DISCOUNTS |***/
                 DB::insert(
-                    "INSERT INTO product_stock ( 
-                        product_id, user, 
-                        user_id, stock, 
-                        date, order_id, 
-                        kind, description, anbar_id, 
-                        changed_count
-                    )
-                    VALUES (
-                        $cp->productId, '$user->username', 
-                        $user->id, $newProductStock, 
-                        $time, $orderId, 
-                        5, '$productDescription', 0, (-1 * $cp->productCount * $cp->productUnitCount)
-                    )"
-                );
-                DB::update(
-                    "UPDATE products 
-                    SET stock = $newProductStock 
-                    WHERE id = $cp->productId"
-                );
-                DB::insert(
-                    "INSERT INTO pack_stock_log (
-                        pack_id, user_id,
-                        stock, changed_count, 
-                        kind, description, 
+                    "INSERT INTO orders_discount (
+                        product_id, real_price, 
+                        off_price, pack_name, 
                         order_id, date
                     ) VALUES (
-                        $cp->productPackId, $user->id, 
-                        $newProductStock, (-1 * $cp->productCount * $cp->productUnitCount), 
-                        2, '$packDescripiton',
+                        $cp->productId, $cp->productPrice, 
+                        ($cp->productPrice - $cp->discountedPrice), $cp->productPackId,
                         $orderId, $time
                     )"
                 );
-                DB::update(
-                    "UPDATE product_pack 
-                    SET stock = $newPackStock 
-                    WHERE product_id = $cp->productId" 
+            }
+        }
+
+        /***| INSERT LOG OF ORDER WHICH IS NOT PAID YET |***/
+        DB::insert(
+            "INSERT INTO user_order_status (
+                user_id, order_id, status
+            ) VALUES (
+                $user->id, $orderId, 6
+            )"
+        );
+
+
+        /***| INSERT DISCOUNTS LOGS OF THIS ORDER |***/
+        foreach($allDiscountIds as $discountId){
+            DB::insert(
+                "INSERT INTO discount_logs (
+                    order_id, user_id, discount_id
+                ) VALUES (
+                    $orderId, $userId, $discountId
+                )"
+            );
+        }
+        if(($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser === 0){
+            $orderItems = DB::select(
+                "SELECT * FROM order_items WHERE order_id = $orderId"
+            );
+            foreach($orderItems as $orderItem){
+                $this->manipulateProductAndLog(
+                    $orderItem->product_id, 
+                    $user->username, 
+                    $userId, 
+                    (-1 * $orderItem->count * $orderItem->pack_count), 
+                    $orderId, 
+                    6, 
+                    'کاهش موجودی - ثبت سفارش - پرداخت از کیف پول',
+                    0,
+                    "NULL",
+                    "NULL",
+                    (-1 * $orderItem->count * $orderItem->pack_count)
+                );
+                $this->manipulatePackAndLog(
+                    $orderItem->pack_id,
+                    $userId,
+                    $orderItem->count,
+                    $orderItem->pack_count,
+                    2,
+                    'کاهش موجودی به دلیل ثبت سفارش مشتری', 
+                    $orderId, 
+                    "NULL"
                 );
             }
 
-            /*** wipe users cart ***/ 
+            $this->updateOrderStatus($orderId, 1);
+
+            $this->updateUserStockAndLog(
+                $user->username, 
+                $userId, 
+                $user->username, 
+                $orderId, 
+                'پرداخت بانکی و کم شدن بخشی از هزینه با استفاده از موجودی',
+                (-1 * $usedStockUser), 
+                6
+            );
+            $this->updateUserOrderCountAndTotalBuy(
+                $userId,
+                $orderDiscountedPrice + $shippingDiscountedPrice,
+                1
+            );
+            /***| DEACTIVATE USER CART |***/ 
             DB::update(
                 "UPDATE shoppingCarts 
                 SET active = 0 
                 WHERE id = $cart->id"
             );
 
-            DB::insert(
-                "INSERT INTO user_order_status (
-                    user_id, order_id, status
-                ) VALUES (
-                    $user->id, $orderId, 6
-                )"
-            );
-
-            /***| INSERT DISCOUNT INFORMATION OF THE PRODUCTS WHICH THEIR PRICE REDUCED BECAUSE OF DISCOUNTS |***/
-            foreach( $cartProducts as $cp){
-                if($cp->productPrice !== $cp->discountedPrice){
-                    DB::insert(
-                        "INSERT INTO orders_discount (
-                            product_id, real_price, 
-                            off_price, pack_name, 
-                            order_id, date
-                        ) VALUES (
-                            $cp->productId, $cp->productPrice, 
-                            ($cp->productPrice - $cp->discountedPrice), $cp->productPackId,
-                            $orderId, $time
-                        )"
-                    );
-                }
-            }
-
-            /***| INSERT DISCOUNTS LOGS OF THIS ORDER |***/
-            foreach($allDiscountIds as $discountId){
-                DB::insert(
-                    "INSERT INTO discount_logs (
-                        order_id, user_id, discount_id
-                    ) VALUES (
-                        $orderId, $userId, $discountId
-                    )"
-                );
-            }
-
-            /***| IT IS TOTALLY USELESS BUT I DO IT LIKE BEFORE |***/
-            /*if($shippingPrice !== $shippingDiscountedPrice){
-                DB::insert(
-                    "INSERT INTO order_shipping_discount (
-                        orderId, shipping_discount_id
-                    ) VALUES (
-                        $orderId, 1
-                    )"
-                );
-            }*/
-
-
-
             return json_encode(array('status' => 'done', 'stage' => 'done', 'message' => 'order is set', 'umessage' => 'خرید با موفقیت انجام شد', 'orderId' => $orderId));
         }else{
             $parameters = [
                 'InvoiceNumber' => '' . $orderId,
                 'InvoiceDate' => date('Y/m/d H:i:s'),
-                'Amount' => (($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser),
-                'RedirectAddress' => 'https://hoanri.com/payment-result/pasargad',
+                'Amount' => (($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser) * 10,
+                'RedirectAddress' => 'https://honari.com/newtest/payment-result/order/pasargad',
                 'Timestamp' => date('Y/m/d H:i:s'),
             ];
             $pasargad = new Pasargad();

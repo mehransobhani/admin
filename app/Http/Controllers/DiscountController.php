@@ -97,9 +97,9 @@ class DiscountController extends Controller
         $tempo = $tempo[0];
         $deliveryServiceId = $tempo->service_id;
         $shippingPrice = 0;
-        if($deliveryServiceId == 1){
+        if($deliveryServiceId == 11){
             $shippingPrice = 12000;   
-        }else if($deliveryServiceId == 2){
+        }else if($deliveryServiceId == 12){
             $shippingPrice = 15000;
         }
         else if($deliveryServiceId == 3){
