@@ -26,19 +26,59 @@ class BankController extends Controller
         );
     }
 
+    public function checkUserOrderPaymentIsValidatedOrNot($tref){
+        $result = DB::select(
+            "SELECT * FROM transaction WHERE bank_ref = '$tref' LIMIT 1"
+        );
+        if(count($result) !== 0){
+            $result = $result[0];
+            $returnObject = new stdClass();
+            $returnObject->done = true;
+            $returnObject->trackingCode = $result->ref;
+            return $returnObject;
+        }else{
+            $returnObject = new stdClass();
+            $returnObject->done = false;
+            $returnObject->trackingCode = '';
+            return $returnObject;
+        }
+    }
+
+    public function checkUserChargePaymentIsValidatedOrNot($tref){
+        $result = DB::select(
+            "SELECT * FROM users_trans WHERE ref_id = '$tref' LIMIT 1"
+        );
+        if(count($result) !== 0){
+            $result = $result[0];
+            $returnObject = new stdClass();
+            $returnObject->done = true;
+            $returnObject->trackingCode = $result->ref;
+            return $returnObject;
+        }else{
+            $returnObject = new stdClass();
+            $returnObject->done = false;
+            $returnObject->trackingCode = '';
+            return $returnObject;
+        }
+    }
+
     public function pasargadBankPaymentResult(Request $request){
         if(!isset($request->iD) || !isset($request->iN) || !isset($request->tref)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
             exit();
         }
         $userId = $request->userId;
-        echo $userId;
         $user = DB::select("SELECT * FROM users WHERE id = $userId LIMIT 1");
         $user = $user[0];
         $iN = $request->iN;
         $iD = $request->iD;
         $tref = $request->tref;
         $time = time();
+        $previousResult = $this->checkUserOrderPaymentIsValidatedOrNot($tref);
+        if($previousResult->done){
+            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'trackingCode' => $previousResult->trackingCode, 'message' => 'users payment was confirmed', 'umessage' => 'سفارش کاربر با موفقیت ثبت شده بود'));
+            exit();
+        }
         $data = [
             'transactionReferenceID' => $tref
         ];
@@ -58,7 +98,8 @@ class BankController extends Controller
             exit();
         }
         $response = json_decode($response);
-        
+        var_dump($response);
+        exit();
         if($response->IsSuccess === false){
             echo json_encode(array('status' => 'done', 'successfulPayment' => false, 'message' => 'payment was not successful', 'umessage' => 'پرداخت موفقیت آمیز نبود'));
             exit();
@@ -150,6 +191,19 @@ class BankController extends Controller
         $iD = $request->iD;
         $tref = $request->tref;
         $time = time();
+        $previousResult = $this->checkUserChargePaymentIsValidatedOrNot($tref);
+        if($previousResult->done){
+            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'users payment was confirmed', 'umessage' => 'سفارش کاربر با موفقیت ثبت شده بود'));
+            exit();
+        }
+        /*$currentTref = DB::select(
+            "SELECT * FROM users_trans WHERE ref_id = '$tref' AND status = 1 LIMIT 1"
+        );
+        if(count($currentTref) !== 0){
+            $currentTref = $currentTref[0];
+            echo json_encode(array('status' => 'done', 'successfulPayment' => false, 'tractionCode' => $currentTref->ref, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شد'));
+            exit();
+        }*/
         $data = [
             'transactionReferenceID' => $tref
         ];
@@ -179,7 +233,7 @@ class BankController extends Controller
         $usersTrans = DB::select(
             "SELECT * 
             FROM users_trans 
-            WHERE ref = '$ref' AND user_id = $userId 
+            WHERE ref = '$ref' 
             LIMIT 1 "
         );
         if(count($usersTrans) === 0){
