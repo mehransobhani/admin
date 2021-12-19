@@ -234,7 +234,7 @@ class BankController extends Controller
             "SELECT * 
             FROM users_trans 
             WHERE ref = '$ref' 
-            LIMIT 1 "
+            LIMIT 1 " 
         );
         if(count($usersTrans) === 0){
             echo json_encode(array('status' => 'failed', 'successfulPayment' => false, 'message' => 'could not find users request', 'umessage' => 'درخواست اولیه کاربر یافت نشد'));
