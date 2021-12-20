@@ -75,7 +75,7 @@ class CategoryController extends Controller
                 $order = $request->order;
 
                 $having = " AND P.prodStatus = 1 AND P.stock > 0 AND  PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock)";
-                $finished = " AND (P.prodStatus = 0 OR P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
+                $finished = " AND P.prodStatus = 1 AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
                 $name = '';
                 $minPrice = '';
                 $maxPrice = '';

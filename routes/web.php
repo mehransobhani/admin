@@ -155,7 +155,15 @@ Route::get('/test-string', function(){
     echo substr($url, -1 * (strlen($url) - $i - 1));
 });
 
+Route::get('/html-test', function(){
+    $text = '<p style="box-sizing: border-box; margin: 0px; padding: 0px; font-family: iran_sans; color: rgb(141, 142, 143); font-size: 15px; text-align: justify;">حجم: 10 میل</p>
 
-
-
-
+    <p style="box-sizing: border-box; margin: 0px; padding: 0px; font-family: iran_sans; color: rgb(141, 142, 143); font-size: 15px; text-align: justify;"><br style="box-sizing: border-box; margin: 0px; padding: 0px;" />
+    برای داشتن شمعی با بوی خوش&nbsp; میتوان از اسانس شمع استفاده نمایید. این اسانس حالت روغنی داشته&nbsp; و داخل پارافین حل می شود . یک شیشه 10 گرمی برای حدود 3 کیلو پارافین کافی است.</p>
+    
+    <p style="box-sizing: border-box; margin: 0px; padding: 0px; font-family: iran_sans; color: rgb(141, 142, 143); font-size: 15px; text-align: justify;">برای اضافه کردن اسانس به پارافین بهتر است اجازه دهید پارافین کمی از حرارت بیفتد تا اسانس بخار نشود.</p>
+    ';
+    $html = '<h1></h1>';
+    //$html = htmlspecialchars($html);
+    var_dump(str_split($html));
+});

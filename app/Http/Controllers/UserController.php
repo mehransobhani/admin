@@ -69,6 +69,77 @@ class UserController extends Controller
         echo json_encode(array('status' => 'found', 'message' => 'successfully got user information'));
     }
 
+    //@route: /api/UserUpdate <--> @middleware: ApiAuthenticationMiddleware
+    public function updateUser(Request $request){
+        $token = '';
+        if(!isset($request->header('token')) || !isset($request->id)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+        $token = $request->header('token');
+        $exUserId = $request->id;
+        $user = DB::select(
+            "SELECT * FROM users WHERE ex_user_id = $exUserId "
+        );
+        if(count($user) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user not found', 'umessage' => 'کاربر یافت نشد'));
+            exit();
+        }
+        $user = $user[0];
+        
+        $provinceName = isset($request->province_name) ? $request->province_name : '';
+        $cityName = isset($request->city_name) ? $request->city_name : '';
+        $postal = isset($request->postal_code) ? trim($request->postal_code) : '';
+        $address = isset($request->address_text) ? trim($request->address_text) : '';
+
+        $addressArray = [
+            'addressPack' => [
+                'province' => $provinceName,
+                'city' => $cityName,
+                'postal' => $postal,
+                'address' => $address
+            ]
+        ];
+
+        $newUser = new stdClass();
+        $newUser->fname = isset($request->fname) ? $request->fname : $user->fname;
+        $newUser->lname = isset($request->lname) ? $request->lname : $user->lname;
+        $newUser->name = isset($request->name) ? $request->name : $user->name;
+        $newUser->email = isset($request->email) ? $request->email : $user->email;
+        $newUser->telephone = isset($request->telephone) ? $request->telephone : $user->telephone;
+        $newUser->postalCode = isset($request->postal_code) ? $request->postal_code : $user->postalCode;
+        $newUser->national_code = isset($request->national_code) ? $request->national_code : $user->national_code;
+        $newUser->address = (empty($provinceName) && empty($cityName) && empty($postal) && empty($address)) ? $user->address : json_encode($addressArray, JSON_UNESCAPED_UNICODE);
+        $newUser->lat = isset($request->lat) ? $request->lat : $user->lat;
+        $newUser->lng = isset($request->lng) ? $request->lng : $user->lng;
+        $newUser->profilepic = isset($request->profilepic) ? $request->profilepic : $user->profilepic;
+        $newUser->mobile = isset($request->mobile) ? $request->mobile : $user->mobile;
+        $newUser->role = isset($request->role) ? $request->role : $user->role;
+
+        foreach($newUser as $key => $value){
+            if($value === NULL){
+                $newUser->$key = "NULL";
+            }
+        }
+
+        $updateResult = DB::update(
+            "UPDATE users SET 
+            fname = '$newUser->fname', lname = '$newUser->lname', 
+            name = '$newUser->name', email = '$newUser->email', 
+            telephone = '$newUser->telephone', postalCode = '$newUser->postalCode', 
+            national_code = '$newUser->national_code', `address` = '$newUser->address', 
+            lat = $newUser->lat, lng = $newUser->lng, 
+            profilepic = '$newUser->profilepic', mobile = '$newUser->mobile', `role` = '$newUser->role' 
+            WHERE id = $user->id"
+        );
+
+        if(!$updateResult){
+            echo json_encode(array('status' => 'faile', 'source' => 'sql', 'message' => 'an error while updating users information', 'umessage' => 'خطا در بروزرسانی اطلاعات کاربر'));
+            exit();
+        }
+        echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));
+    }
+
 }
 
 /*namespace App\Http\Controllers\API;

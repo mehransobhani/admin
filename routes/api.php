@@ -216,3 +216,6 @@ Route::get('/get-six-new-product', function(){
     Route::post('/guest-add-to-cart',                   [CartController::class,             'guestAddToCart']); // OK!
     Route::post('/guest-check-cart-changes',            [CartController::class,             'checkGuestCartChanges']); // ****** I HAVE TO WORKD ON THIS FIRST ******
     //Route::post('/cpd', [CategoryController::class, 'calculateProductsDiscount']);
+
+    /*#####| USER API ROUTES |#####*/
+    Route::post('/UserUpdate',                          [UserController::class,             'updateUser']); // TO BE TESTED!

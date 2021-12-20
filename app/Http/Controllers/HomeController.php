@@ -50,7 +50,7 @@ class HomeController extends Controller
             );
             if(count($product) !== 0){
                 $product = $product[0];
-                echo json_encode(array('status' => 'done', 'found' => true, 'type' => 'product', 'id' => $product->id, 'prodID' => $product->prodID, 'name' => $product->prodName_fa, 'description' => $product->prodDscb));
+                echo json_encode(array('status' => 'done', 'found' => true, 'type' => 'product', 'id' => $product->id, 'prodID' => $product->prodID, 'name' => $product->prodName_fa, 'description' => $product->prodDscb, 'metaDescription' => htmlspecialchars($product->prodDscb)));
             }else{
                 $category = DB::select(
                     "SELECT * FROM category WHERE url = '$route' LIMIT 1"
