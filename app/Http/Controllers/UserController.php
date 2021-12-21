@@ -71,7 +71,7 @@ class UserController extends Controller
 
     //@route: /api/UserUpdate <--> @middleware: ApiAuthenticationMiddleware
     public function updateUser(Request $request){
-        $token = '';
+        /*$token = '';
         if(!isset($request->header('token')) || !isset($request->id)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'ورودی کافی نیست'));
             exit();
@@ -137,7 +137,7 @@ class UserController extends Controller
             echo json_encode(array('status' => 'faile', 'source' => 'sql', 'message' => 'an error while updating users information', 'umessage' => 'خطا در بروزرسانی اطلاعات کاربر'));
             exit();
         }
-        echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));
+        echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));*/
     }
 
 }
