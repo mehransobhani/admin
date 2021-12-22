@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Classes\payment\pasargad\Pasargad;
 use App\Models\Art;
 use App\Models\Banner;
 use App\Models\Category;
@@ -102,6 +103,12 @@ class BankController extends Controller
         exit();
         if($response->IsSuccess === false){
             echo json_encode(array('status' => 'done', 'successfulPayment' => false, 'message' => 'payment was not successful', 'umessage' => 'پرداخت موفقیت آمیز نبود'));
+            exit();
+        }
+        $pasargad = new Pasargad();
+        $verificationResult = $pasargad->verifyPayment($response->InvoiceNumber, $response->InvoiceDate, $response->Amount);
+        if($verificationResult['status'] == 'failed'){
+            echo json_encode($verificationResult);
             exit();
         }
         $orderId = intval($response->InvoiceNumber);
@@ -227,6 +234,12 @@ class BankController extends Controller
             echo json_encode(array('status' => 'done', 'successfulPayment' => false, 'message' => 'payment was not successful', 'umessage' => 'پرداخت موفقیت آمیز نبود'));
             exit();
         }
+        $pasargad = new Pasargad();
+        $verificationResult = $pasargad->verifyPayment($response->InvoiceNumber, $response->InvoiceDate, $response->Amount);
+        if($verificationResult['status'] == 'failed'){
+            echo json_encode($verificationResult);
+            exit();
+        }
         $ref = intval($response->InvoiceNumber);
         $amount = intval($response->Amount) / 10;
         
@@ -252,4 +265,5 @@ class BankController extends Controller
         
         echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'source' => 'c', 'message' => 'users account successfully charged', 'umessage' => 'شارژ حساب کاربری با موفقیت انجام شد'));
     }
+
 }

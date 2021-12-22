@@ -295,17 +295,29 @@ class ProductController extends Controller
     }
 
     public function sixTopsellerProducts(){
-        $time = time();
-        $oneWeekAgo = ($time - (604800));
-        $result = [];
-        DB::select(
-            "SELECT * FROM order_items 
-            WHERE order_id in (SELECT id FROM orders WHERE date > $oneWeekAgo AND stat NOT IN (6, 7)) "
-        );
+        
     }
 
     public function topSixBestsellerProducts(Request $request){
-        
+        $time = time();
+
+        /*****| LATEST ORDERS WHICH PURCHASED AND ARE NOT CANCELED |*****/
+        /*$latestFortyOrders = DB::select(
+            "SELECT OI.product_id 
+            FROM orders O INNER JOIN order_items OI ON O.id = OI.order_id 
+            WHERE O.stat NOT IN (6,7) 
+            ORDER BY O.date DESC 
+            LIMIT 10"
+        );*/
+        $latestFortyOrders = DB::select(
+            "SELECT OI.product_id FROM order_items OI where OI.order_id = (SELECT O.id  FROM orders O WHERE O.id = 202123 ORDER BY O.date DESC )"
+        );
+        $productIdArray = [];
+        foreach($latestFortyOrders as $item){
+            array_push($productIdArray, $item->product_id);
+        }
+        //$count = array_count_values($productIdArray);
+        var_dump($productIdArray);
     }
 
     public function topSixDiscountedProducts(Request $request){
@@ -339,6 +351,44 @@ class ProductController extends Controller
         
         $discountInformation = DiscountCalculator::topSixProductsDiscountCalculator($discountInformation);
         echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'products successfully found', 'products' => $discountInformation));
+    }
+
+    public function filterPaginatedNewProducts(Request $request) {
+        if(!isset($request->page)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+        $page = $request->page;
+
+        /*
+            P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, C.id AS category, C.name AS categoryName
+        
+                                                                                                                            $productObject->productId = $product->id;
+                                                                                                                            $productObject->productPackId = $product->packId;
+                                                                                                                            $productObject->productName = $product->prodName_fa;
+                                                                                                                            $productObject->prodID = $product->prodID;
+                                                                                                                            $productObject->categoryId = $product->category;
+                                                                                                                            $productObject->categoryName = $product->categoryName;
+                                                                                                                            $productObject->productPrice = $product->price;
+                                                                                                                            $productObject->productUrl = $product->url;
+                                                                                                                            $productObject->productBasePrice = $product->base_price;
+                                                                                                                            $productObject->maxCount = $product->packStock;
+                                                                                                                            $productObject->productUnitCount = $product->count;
+                                                                                                                            $productObject->productUnitName = $product->prodUnite;
+                                                                                                                            $productObject->productLabel = $product->label;
+        */
+
+        DB::select(
+            "(  SELECT sort = 1, PP.id AS productPackId, P.prodName_fa AS productName, P.prodID, P.url AS productUrl, P.prodUnite AS productUnitName, PP.stock AS maxCount, PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS productLabel, PP.count AS productUnitCount, C.id AS categoryId, C.name AS categoryName  
+                FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
+                WHERE P.prodStatus = 1 AND stock > 0 AND PP.status = 1 AND PP.stock > 0 AND (PP.count * PP.stock) <= P.stock
+             ) UNION (
+                SELECT sort = 1, PP.id AS productPackId, P.prodName_fa AS productName, P.prodID, P.url AS productUrl, P.prodUnite AS productUnitName, PP.stock AS maxCount, PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS productLabel, PP.count AS productUnitCount, C.id AS categoryId, C.name AS categoryName  
+                FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
+                WHERE P.prodStatus = 1 AND stock > 0 AND PP.status = 1 AND PP.stock > 0 AND (PP.count * PP.stock) <= P.stock
+             )
+             ORDER BY sort ASC, P"
+        );
     }
 
 }

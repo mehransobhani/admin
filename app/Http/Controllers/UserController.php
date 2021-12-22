@@ -140,6 +140,126 @@ class UserController extends Controller
         echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));*/
     }
 
+    public function addUser($token){
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,"https://auth.honari.com/api/user-info");
+        //curl_setopt($ch, CURLOPT_POSTFIELDS, ['token' => $token]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $headers = [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $token,
+            'Content-Length: ' . strlen(json_encode(['token' => $token]))
+        ];
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        $server_output = curl_exec ($ch);
+        curl_close ($ch);
+        if($server_output == '"user is not authenticate."'){
+            $response = new stdClass();
+            $response->status = 'failed';
+            $response->message = 'token is not valid';
+            $response->umessage = 'کاربر شناسایی نشد';
+            return $response;
+        }
+        if($server_output == null){
+            $response = new stdClass();
+            $response->status = 'failed';
+            $response->message = 'could not connect to user server';
+            $response->umessage = 'خطا در دسترسی به اطلاعات کاربر';
+            return $response;
+        }
+        $userObject = json_decode($server_output);
+        if(!is_object($userObject)){
+            $response = new stdClass();
+            $response->status = 'failed';
+            $response->message = 'response is not json';
+            $response->umessage = 'خطا در نوع پاسخ دریافتی';
+            return $response;
+        }
+        /*user table:
+#username: string mobile
+#password: hashedkpassword which is reserve : e10adc3949ba59abbe56e057f20f883e
+#userlevel: 0
+email: user email string it should be empty for user that does not have email
+hubspot_mail: ...
+timestamp: date of user first log in
+valid: 0
+name: full name string
+profilepic: ''
+mobile: phone number
+telephone: ''
+postalCode: ''
+address: ''
+orders_count: 0
+total_buy: 0
+role: ''
+token: ''
+gcmToken: ''
+newGcmToken: ''
+androidToken: ''
+user_stock: 0,
+fname: '',
+lname: ''
+selectedArts = ''
+area: 0
+giftcode: 0
+followers: 0
+following: 0
+user_key: ? string
+can_cash_pay: 1
+last_update: string timestamp of last update
+v_id: NULL
+national_code: NULL
+lat: NULL,
+lng: NULL,
+ex_user_id: id
+
+
+#################################################################
+{
+    "success": true,
+    "data": {
+        "user": {
+            "id": 240308,
+            "username": "09109495026",
+            "email": "hadi1998goodboy@gmail.com",
+            "name": "هادی حسین پور",
+            "profilepic": null,
+            "mobile": "09109495026",
+            "telephone": "02112345678",
+            "postalCode": "1234567891",
+            "address": "آدرس - خیابان - کوچه - پلاک",
+            "role": "admin",
+            "fname": "هادی",
+            "lname": "حسین پور",
+            "national_code": "0020978431",
+            "lat": 35.6651,
+            "lng": 51.0562,
+            "province_id": 1,
+            "city_id": 3351,
+            "address_2": null,
+            "can_password_reset": 1,
+            "get_province": {
+                "id": 1,
+                "name": "تهران",
+                "iso_code": "1"
+            },
+            "get_city": {
+                "id": 3351,
+                "parent_province": 1,
+                "city": "شهریار",
+                "fee": 0,
+                "status": 1
+            }
+        }
+    },
+    "message": "here is user information."
+}*/
+        /*DB::insert(
+            "INSERT INTO users 
+            SET "
+        );*/
+    }
+
 }
 
 /*namespace App\Http\Controllers\API;

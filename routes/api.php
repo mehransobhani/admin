@@ -149,6 +149,7 @@ Route::get('/get-six-new-product', function(){
     Route::post('/top-six-bestseller-similar-products', [ProductController::class, 'topSixBestsellerSimilarProducts']); // USELESS!
     Route::get('/top-six-bestseller-products',          [ProductController::class, 'topSixBestsellerProducts']); // TO BE TESTED!
     Route::get('/top-six-discounted-products',          [ProductController::class, 'topSixDiscountedProducts']); // OK!
+    Route::post('/filtered-paginated-new-products',     [ProductController::class, 'filterPaginatedNewProducts']);
 
     /*##### Category routes #####*/
     Route::post('/subcategories',                       [CategoryController::class, 'subCategories']);
@@ -165,7 +166,7 @@ Route::get('/get-six-new-product', function(){
     Route::get('/menu',                                 [MenuController::class, 'menuItemsInformation']); // OK!
 
     /*##### Art routes ###*/
-    Route::post('/art-information',                     [ArtController::class,   'artInformation']); // TO BE TESTED!
+    Route::post('/art-information',                     [ArtController::class,   'artInformation']); // OK!
 
     /*##### User routes  #####*/
     Route::middleware([ApiAuthenticationMiddleware::class])->group(function () {

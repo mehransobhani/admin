@@ -73,7 +73,7 @@ class CategoryController extends Controller
             if($category->count() !== 0){
                 $category = $category->first();
                 $order = $request->order;
-
+                $onlyAvailableProducts = $request->onlyAvailableProducts;
                 $having = " AND P.prodStatus = 1 AND P.stock > 0 AND  PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock)";
                 $finished = " AND P.prodStatus = 1 AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
                 $name = '';
@@ -107,7 +107,11 @@ class CategoryController extends Controller
                 $queryFinished = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, -1 AS price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                     WHERE C.id = $request->id OR C.parentID = $request->id)" . $finished . $name . $minPrice . $maxPrice . " AND PP.status = 1 " . $order;
                 $havingProducts = DB::select($queryHaving);
-                $finishedProducts = DB::select($queryFinished);
+                if($onlyAvailableProducts === 0){
+                    $finishedProducts = DB::select($queryFinished);
+                }else{
+                    $finishedProducts = [];
+                }
                 $products = [];
                 foreach($havingProducts as $hp){
                     if($hp->status == 1){
