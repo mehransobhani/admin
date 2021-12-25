@@ -70,7 +70,7 @@ class UserController extends Controller
     }
 
     //@route: /api/UserUpdate <--> @middleware: ApiAuthenticationMiddleware
-    public function updateUser(Request $request){
+    /*public function updateUser(Request $request){
         $token = '';
         if(!isset($request->hasHeader('token')) || !isset($request->id)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'ورودی کافی نیست'));
@@ -138,7 +138,7 @@ class UserController extends Controller
             exit();
         }
         echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));
-    }
+    }*/
 
     public function createuserKey($username){
         $hash = md5('amin' . time()) . 'honari' . md5(strrev($username) . 'behnam');
