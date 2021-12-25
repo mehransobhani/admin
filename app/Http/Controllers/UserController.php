@@ -71,12 +71,12 @@ class UserController extends Controller
 
     //@route: /api/UserUpdate <--> @middleware: ApiAuthenticationMiddleware
     public function updateUser(Request $request){
-        /*$token = '';
-        if(!isset($request->header('token')) || !isset($request->id)){
+        $token = '';
+        if(!isset($request->hasHeader('token')) || !isset($request->id)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'ورودی کافی نیست'));
             exit();
         }
-        $token = $request->header('token');
+        $token = $request->hasHeader('token');
         $exUserId = $request->id;
         $user = DB::select(
             "SELECT * FROM users WHERE ex_user_id = $exUserId "
@@ -137,7 +137,26 @@ class UserController extends Controller
             echo json_encode(array('status' => 'faile', 'source' => 'sql', 'message' => 'an error while updating users information', 'umessage' => 'خطا در بروزرسانی اطلاعات کاربر'));
             exit();
         }
-        echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));*/
+        echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));
+    }
+
+    public function createuserKey($username){
+        $hash = md5('amin' . time()) . 'honari' . md5(strrev($username) . 'behnam');
+        return md5($hash);
+    }
+
+    public function createUserAddress($user){
+        if($user->address === NULL || $user->adderss === ''){
+            return '';
+        }
+        $address = new stdClass();
+        $addressPack = new stdClass();
+        $addressPack->province = $user->get_province->name;
+        $addressPack->city = $user->get_city->city;
+        $addressPack->postal = $user->postalCode;
+        $addressPack->address = $user->address;
+        $address->addressPack = $addressPack;
+        return json_encode($address);
     }
 
     public function addUser($token){
@@ -175,46 +194,96 @@ class UserController extends Controller
             $response->umessage = 'خطا در نوع پاسخ دریافتی';
             return $response;
         }
+        $time = time();
+
         /*user table:
-#username: string mobile
-#password: hashedkpassword which is reserve : e10adc3949ba59abbe56e057f20f883e
-#userlevel: 0
-email: user email string it should be empty for user that does not have email
-hubspot_mail: ...
-timestamp: date of user first log in
-valid: 0
-name: full name string
-profilepic: ''
-mobile: phone number
-telephone: ''
-postalCode: ''
-address: ''
-orders_count: 0
-total_buy: 0
-role: ''
-token: ''
-gcmToken: ''
-newGcmToken: ''
-androidToken: ''
-user_stock: 0,
-fname: '',
-lname: ''
-selectedArts = ''
-area: 0
-giftcode: 0
-followers: 0
-following: 0
-user_key: ? string
-can_cash_pay: 1
-last_update: string timestamp of last update
-v_id: NULL
-national_code: NULL
-lat: NULL,
-lng: NULL,
-ex_user_id: id
+        #username: string mobile
+        #password: hashedkpassword which is reserve : e10adc3949ba59abbe56e057f20f883e
+        #userlevel: 0
+        email: user email string it should be empty for user that does not have email
+        hubspot_mail: ...
+        timestamp: date of user first log in
+        valid: 0
+        name: full name string
+        profilepic: ''
+        mobile: phone number
+        telephone: ''
+        postalCode: ''
+        address: ''
+        orders_count: 0
+        total_buy: 0
+        role: ''
+        token: ''
+        gcmToken: ''
+        newGcmToken: ''
+        androidToken: ''
+        user_stock: 0,
+        fname: '',
+        lname: ''
+        selectedArts = ''
+        area: 0
+        giftcode: 0
+        followers: 0
+        following: 0
+        user_key: ? string
+        can_cash_pay: 1
+        last_update: string timestamp of last update
+        v_id: NULL
+        national_code: NULL
+        lat: NULL,
+        lng: NULL,
+        ex_user_id: <id></id>
+                                */
 
+        $urlKey = $this->createuserKey($userObject->username);
 
-#################################################################
+        $userAddress = $this->createUserAddress($userObject);
+
+        DB::insert(
+            "INSERT INTO users (
+                username , `password`, 
+                userlevel: 0, email, 
+                hubspot_mail, `timestamp`: $time, 
+                valid, `name`, 
+                profilepic: '', mobile, 
+                telephone, postalcode, 
+                `address`, orders_count: 0, 
+                total_buy: 0, `role`, 
+                token: '', gcmToken: '', 
+                newGcmToken: '', androidToken: '', 
+                user_stock: 0, fname, 
+                lname, selectedArts: '', 
+                area: 0, giftcode: 0, 
+                followers: 0, followings: 0, 
+                user_key, can_cash_pay: 1, 
+                last_update: $time, v_id: NULL, 
+                national_code: NULL, lat,
+                lng, ex_user_id 
+            ) VALUES (
+                '$userObject->username' 'e10adc3949ba59abbe56e057f20f883e', 
+                0, '$userObject->email', 
+                '$userObject->email', $time, 
+                0, '$userObject->name', 
+                '', '$userObject->username', 
+                '$userObject->telephone', '$userObject->postalCode', 
+                '$userAddress', 0, 
+                0, '$userObject->role', 
+                '', '', 
+                '', '', 
+                0, $userObject->fname, 
+                $userObject->lname, '', 
+                0, 0, 
+                0, , 
+                '', 1, 
+                $time, NULL, 
+                NULL, $userObject->lat, 
+                $userObject->lng, $userObject->id
+            )"
+        );
+
+        /*
+
+        #################################################################
 {
     "success": true,
     "data": {
