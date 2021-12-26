@@ -99,8 +99,6 @@ class BankController extends Controller
             exit();
         }
         $response = json_decode($response);
-        var_dump($response);
-        exit();
         if($response->IsSuccess === false){
             echo json_encode(array('status' => 'done', 'successfulPayment' => false, 'message' => 'payment was not successful', 'umessage' => 'پرداخت موفقیت آمیز نبود'));
             exit();
@@ -152,7 +150,6 @@ class BankController extends Controller
         $packDescripiton = "کاهش موجودی به دلیل ثبت سفارش مشتری";
 
         foreach($orderItems as $orderItem){
-            //$productId, $username, $userId, $changedStock, $orderId, $kind, $description, $anbarId, $factorId, $newFactorId, $changedCount
             $orderController->manipulateProductAndLog(
                 $orderItem->product_id, 
                 $user->username, 
@@ -200,7 +197,7 @@ class BankController extends Controller
         $time = time();
         $previousResult = $this->checkUserChargePaymentIsValidatedOrNot($tref);
         if($previousResult->done){
-            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'users payment was confirmed', 'umessage' => 'سفارش کاربر با موفقیت ثبت شده بود'));
+            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'users payment was confirmed', 'umessage' => 'پرداخت کاربر با موفقیت ثبت شده بود'));
             exit();
         }
         /*$currentTref = DB::select(
@@ -265,5 +262,4 @@ class BankController extends Controller
         
         echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'source' => 'c', 'message' => 'users account successfully charged', 'umessage' => 'شارژ حساب کاربری با موفقیت انجام شد'));
     }
-
 }
