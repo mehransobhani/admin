@@ -15,11 +15,11 @@ class SearchController extends Controller
 
     private static $BASE_URL = 'http://search.honari.com';
     private static $AUTO_COMPLETE_URL = '/api/v1/management/search/autocomplete';
-    private static $PRODUCT_API_TOKEN = '21bb3b6e-0f96-4718-8d6c-8f03a538927e';
-
+    private static $PRODUCTS_API_TOKEN = '21bb3b6e-0f96-4718-8d6c-8f03a538927e';
+    private static $PRODUCTS_AND_COURSES_API_TOKEN = 'a880cb7b-1194-416f-94cc-87b6db4fb450';
     public function getAutocomplete(Request $request){
         $query = $request->input;
-        $autoCompleteUrl = self::$BASE_URL . self::$AUTO_COMPLETE_URL . '/?apiToken=' . self::$PRODUCT_API_TOKEN . '&query=' . urlencode($query);
+        $autoCompleteUrl = self::$BASE_URL . self::$AUTO_COMPLETE_URL . '/?apiToken=' . self::$PRODUCTS_AND_COURSES_API_TOKEN . '&query=' . urlencode($query);
         $ch = curl_init($autoCompleteUrl);
         curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
