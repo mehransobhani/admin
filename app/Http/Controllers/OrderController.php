@@ -583,7 +583,7 @@ class OrderController extends Controller
             "INSERT INTO pack_stock_log (
                 pack_id, user_id, stock, changed_count, kind, description, order_id, factor_id, date
             ) VALUES (
-                $packId, $userId, (SELECT stock FROM product_pack WHERE id = $packId AND status = 1) + $changedAmount, $changedAmount, $kind, '$description', $orderId, $factorId, $time 
+                $packId, $userId, (SELECT stock * `count` FROM product_pack WHERE id = $packId AND status = 1) + $changedAmount, $changedAmount, $kind, '$description', $orderId, $factorId, $time 
             )"
         );
         DB::update(
