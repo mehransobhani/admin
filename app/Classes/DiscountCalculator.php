@@ -9,7 +9,7 @@ class DiscountCalculator{
 
     public static function calculateProductDiscount($product){
         $time = time();
-        $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type IN ('category', 'product') AND D.code IS NULL AND D.neworder = 0 
+        $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type IN ('category', 'product') AND D.code IS NULL AND D.neworder = 0 AND D.user_start_date IS NULL AND D.user_finish_date IS NULL 
             AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
         $reducedPrice = 0;
         foreach($discounts as $discount){
@@ -44,7 +44,8 @@ class DiscountCalculator{
         }
         if($reducedPrice !== 0){
             if($reducedPrice < $product->productPrice){
-                $product->discountedPrice = $product->productPrice - (100 * (integer)(($reducedPrice) / 100));
+                //$product->discountedPrice = $product->productPrice - (100 * (integer)(($reducedPrice) / 100));
+                $product->discountedPrice = $product->productPrice - ($reducedPrice - $reducedPrice%50);
                 $product->discountPercent = (integer)(($reducedPrice/$product->productPrice) * 100);
             }else{
                 $product->discountedPrice = 0;
@@ -57,16 +58,17 @@ class DiscountCalculator{
         return $product;
     }
 
-    public static function calculateProductsDiscount($products){
-        $time = time();
+    public static function calculateProductsDiscount($products){ 
+        $time = time(); 
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type IN ('product', 'category') AND D.code IS NULL AND D.neworder = 0 
-            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL AND D.reusable = 1
+            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL AND D.reusable = 1 
+            AND D.user_start_date IS NULL AND D.user_finish_date IS NULL 
             AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
-        if(count($discounts) !== 0){
-            $rps = array();
-            foreach($products as $product){
-                array_push($rps, 0);
-            }
+        if(count($discounts) !== 0){ 
+            $rps = array(); 
+            foreach($products as $product){ 
+                array_push($rps, 0); 
+            } 
             foreach($discounts as $discount){
                 $discountUsers = DB::select("SELECT DD.dependency_id AS user_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'user'");
                 $discountProvinces = DB::select("SELECT DD.dependency_id AS province_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.dependency_type = 'province'");
@@ -103,7 +105,8 @@ class DiscountCalculator{
             foreach($products as $product){
                 if($rps[$i] !== 0){
                     if($rps[$i] < $products[$i]->productPrice){
-                        $products[$i]->discountedPrice = $products[$i]->productPrice - (100 * (integer)(($rps[$i]) / 100));
+                        //$products[$i]->discountedPrice = $products[$i]->productPrice - (100 * (integer)(($rps[$i]) / 100));
+                        $products[$i]->discountedPrice = $products[$i]->productPrice - ($rps[$i] - $rps[$i]%50);
                         $products[$i]->discountPercent = (integer)(($rps[$i]/$products[$i]->productPrice) * 100);
                     }else{
                         $products[$i]->discountedPrice = 0;
@@ -135,10 +138,11 @@ class DiscountCalculator{
         }
         $discounts = DB::select(
                             "SELECT * 
-                            FROM discounts 
-                            WHERE type = 'shipping' AND status = 1 AND code IS NULL AND 
-                            ((start_date IS NULL AND finish_date IS NULL) OR (start_date <= $now AND $now <= finish_date)) AND 
-                            ((expiration_date IS NULL) OR ($now <= expiration_date))
+                            FROM discounts D
+                            WHERE D.type = 'shipping' AND D.status = 1 AND D.code IS NULL AND 
+                            ((D.start_date IS NULL AND D.finish_date IS NULL) OR (D.start_date <= $now AND $now <= D.finish_date)) AND 
+                            ((D.expiration_date IS NULL) OR ($now <= D.expiration_date)) AND 
+                            ((D.user_start_date IS NULL AND D.user_finish_date IS NULL) OR (D.user_start_date IS NOT NULL AND D.user_finish_date IS NOT NULL AND (SELECT COUNT(O.id) FROM orders O WHERE O.user_id = $userId AND O.date >= D.user_start_date AND O.date <= D.user_finish_date) = 0))
                             ORDER BY date DESC, id DESC"
                         );
         if(count($discounts) === 0){
@@ -252,14 +256,15 @@ class DiscountCalculator{
         $responseObject = new stdClass();
         $discount = DB::select(
             "SELECT * 
-            FROM discounts 
+            FROM discounts d
             WHERE 
-                code = '$giftCode' AND
-                status = 1 AND 
-                (start_date IS NULL OR start_date <= $time) AND 
-                (finish_date IS NULL OR finish_date >= $time) AND 
-                (expiration_date IS NULL OR expiration_date >= $time) AND
-                (min_price IS NULL OR min_price <= $cartPrice)
+                D.code = '$giftCode' AND
+                D.status = 1 AND 
+                (D.start_date IS NULL OR D.start_date <= $time) AND 
+                (D.finish_date IS NULL OR D.finish_date >= $time) AND 
+                (D.expiration_date IS NULL OR D.expiration_date >= $time) AND 
+                ((D.user_start_date IS NULL AND D.user_finish_date IS NULL) OR (D.user_start_date IS NOT NULL AND D.user_finish_date IS NOT NULL AND (SELECT COUNT(O.id) FROM orders O WHERE O.user_id = $userId AND O.date >= D.user_start_date AND O.date <= D.user_finish_date) = 0)) AND 
+                (D.min_price IS NULL OR D.min_price <= $cartPrice)
             LIMIT 1"
         );
         if(count($discount) === 0){
@@ -456,7 +461,8 @@ class DiscountCalculator{
         $time = time();
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type IN ('product', 'category') AND D.code IS NULL 
             AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL 
-            AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+            AND (D.expiration_date IS NULL OR D.expiration_date >= $time) AND 
+            ((D.user_start_date IS NULL AND D.user_finish_date IS NULL) OR (D.user_start_date IS NOT NULL AND D.user_finish_date IS NOT NULL AND (SELECT COUNT(O.id) FROM orders O WHERE O.user_id = $userId AND O.date >= D.user_start_date AND O.date <= D.user_finish_date) = 0))");
         if(count($discounts) !== 0){
             $rps = array();
             foreach($products as $product){
@@ -604,7 +610,8 @@ class DiscountCalculator{
         }
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type IN ('order', 'shipping') AND D.code IS NULL 
             AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL 
-            AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+            AND (D.expiration_date IS NULL OR D.expiration_date >= $time) AND 
+            ((D.user_start_date IS NULL AND D.user_finish_date IS NULL) OR (D.user_start_date IS NOT NULL AND D.user_finish_date IS NOT NULL AND (SELECT COUNT(O.id) FROM orders O WHERE O.user_id = $userId AND O.date >= D.user_start_date AND O.date <= D.user_finish_date) = 0))");
         if(count($discounts) !== 0){
             $rps = array();
             foreach($products as $product){
@@ -774,7 +781,8 @@ class DiscountCalculator{
         $totalShippingPrice = ShippingCalculator::shippingPriceCalculator($user, $totalWeight, $serviceId);
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.code IS NULL 
             AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND (D.start_date IS NULL OR D.start_date <= $time) AND (D.finish_date IS NULL OR D.finish_date >= $time)  
-            AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+            AND (D.expiration_date IS NULL OR D.expiration_date >= $time) AND 
+            ((D.user_start_date IS NULL AND D.user_finish_date IS NULL) OR (D.user_start_date IS NOT NULL AND D.user_finish_date IS NOT NULL AND (SELECT COUNT(O.id) FROM orders O WHERE O.user_id = $user->id AND O.date >= D.user_start_date AND O.date <= D.user_finish_date) = 0))");
         if(count($discounts) !== 0){
             $rps = array();
             foreach($products as $product){

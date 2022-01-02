@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Classes\payment\pasargad\RSAProcessor;
+use Illuminate\Support\Facades\Date;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,7 +47,7 @@ Route::get('/ls', function(){
     }else{
         echo 'logged out';
     }
-});
+}); 
 Route::get('/lo', function(){
     if(Auth::guard('web')->check()){
         //Auth::guard('web')->logout();
@@ -166,4 +167,80 @@ Route::get('/html-test', function(){
     $html = '<h1></h1>';
     //$html = htmlspecialchars($html);
     var_dump(str_split($html));
+});
+
+Route::get('/makedate', function(){
+    $date = new Date(time());
+    echo jdate('Y-m-d H:i:s', 1616185800);
+});
+Route::get('/sendMessage', function(){
+    try{
+        $api = new \Kavenegar\KavenegarApi( "7358684B76496D5079754170615766594F534A31724130495344335152326D4F" );
+        $sender = "10000055373520";
+        $message = "سلام، لطفا با پاسخ به سوالات لینک زیر به افزایش کیفیت آموزش‌ها کمک کنید." . "\n";
+        $message = $message . "ممنون که هنری رو برای یادگیری انتخاب کردین." . "\n";
+        $message = $message . "honari.com/a/cls_s";
+        $receptor = '09109495026';
+        $result = $api->Send($sender,$receptor,$message, time() +  + 60);
+        if($result){
+            var_dump($result);
+        }
+        else{
+            var_dump($result);
+        }
+    }
+    catch(\Kavenegar\Exceptions\ApiException $e){
+        // در صورتی که خروجی وب سرویس 200 نباشد این خطا رخ می دهد
+        return ['success' => false , 'error' => $e];
+    }
+    catch(\Kavenegar\Exceptions\HttpException $e){
+        // در زمانی که مشکلی در برقرای ارتباط با وب سرویس وجود داشته باشد این خطا رخ می دهد
+        return ['success' => false , 'error' => $e];
+    }
+    /*    $receptor = '09109495026';
+        $sender = "10000055373520";
+        $message = "سلام، لطفا با پاسخ به سوالات لینک زیر به افزایش کیفیت آموزش‌ها کمک کنید." . "\n";
+        $message = $message . "ممنون که هنری رو برای یادگیری انتخاب کردین." . "\n";
+        $message = $message . "honari.com/a/cls_s";
+        $message = urlencode($message);
+        $sendDate = time() + (3.5*60*60)  + 60;
+        echo "date: " . $sendDate .'<>';
+        //$url = 'https://api.kavenegar.com/v1/7358684B76496D5079754170615766594F534A31724130495344335152326D4F/sms/send.json?receptor='.$receptor.'&message='.$message;
+        $url = "https://api.kavenegar.com/v1/7358684B76496D5079754170615766594F534A31724130495344335152326D4F/sms/send.json?receptor=$receptor&sender=$sender&message=$message&date=$sendDate";
+        $headers = array(
+            'Accept: application/json',
+            'Content-Type: application/x-www-form-urlencoded',
+            'charset: utf-8'
+        );
+
+        $handle = curl_init();
+        curl_setopt($handle, CURLOPT_URL, $url);
+        curl_setopt($handle, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+
+        $response = curl_exec($handle);
+        var_dump($response);
+        echo '----------------------------------------------------------------------------------';
+        if ($response && json_decode ( $response )->return->status === 200 ){
+            echo 'message successfully sent';
+        }
+        else {
+            echo 'could not send message';
+        }
+        */
+        $feedbackApi = new \Kavenegar\KavenegarApi( "7358684B76496D5079754170615766594F534A31724130495344335152326D4F" );
+        $sender = "10000055373520";
+        $feedBackMessage = "سلام، لطفا با پاسخ به سوالات لینک زیر به افزایش کیفیت آموزش‌ها کمک کنید." . "\n";
+        $feedBackMessage = $feedBackMessage . "ممنون که هنری رو برای یادگیری انتخاب کردین." . "\n";
+        $feedBackMessage = $feedBackMessage . "honari.com/a/cls_s";
+        $result = $feedbackApi->Send($sender,$receptor,$feedBackMessage, $sendDate);
+
+});
+
+Route::get('/helloworld', function(){
+    echo jdate('Y-m-d H:i:s', 1641124271);
+    echo '<br />';
+    echo date('Y-m-d H:i:s', 1641124271);
+    echo '<br />';
+    
 });

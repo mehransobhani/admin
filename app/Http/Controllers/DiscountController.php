@@ -137,14 +137,14 @@ class DiscountController extends Controller
         echo json_encode($result);
     }
 
-     // @route: /api/user-cart-and-shipping-prices-with-discounts <--> @middleware: UserAuthenticationMiddleware
-     public function cartAndShippingPricesWithDiscounts(Request $request){
-        $userId = $request->userId;
-        $userCart = DB::select(
+     // @route: /api/user-cart-and-shipping-prices-with-discounts <--> @middleware: UserAuthenticationMiddleware 
+     public function cartAndShippingPricesWithDiscounts(Request $request){ 
+        $userId = $request->userId; 
+        $userCart = DB::select( 
             "SELECT * 
             FROM shoppingCarts 
             WHERE user_id = $userId AND active = 1 
-            ORDER BY id DESC
+            ORDER BY id DESC 
             LIMIT 1"
         );
         if(count($userCart) === 0){

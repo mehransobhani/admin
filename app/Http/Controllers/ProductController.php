@@ -401,6 +401,7 @@ class ProductController extends Controller
         for($i=0; $i<12 && $firstItem + $i < $count ; $i++){
             array_push($selectedProducs, $products[$firstItem + $i]);
         }
+        /***| CALCULATE DISCOUNT OF THESE PRODUCTS |***/
         $selectedProducs = DiscountCalculator::calculateProductsDiscount($selectedProducs);
         echo json_encode(array('status' => 'done', 'found' => true, 'count' => $count, 'message' => 'no result found', 'products' => $selectedProducs));
     }

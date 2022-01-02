@@ -21,7 +21,7 @@ class Cors
 
         $headers = [
             'Access-Control-Allow-Methods'=> 'POST, GET, OPTIONS, PUT, DELETE',
-            //'Access-Control-Allow-Headers'=> 'Content-Type, X-Auth-Token, Origin'
+            'Access-Control-Allow-Headers'=> 'Content-Type, X-Auth-Token, Origin',
             'Access-Control-Allow-Headers'=> '*'
         ];
 
