@@ -825,9 +825,10 @@ class DiscountCalculator{
                 }
                 if($discount->type === 'product'){
                     if(count($discountProducts) !== 0){
+                        $i = 0;
                         foreach($products as $product){
                             $inputProductObject1->product_id = $product->productId;
-                            for($i = 0; $i<sizeof($discountProducts); $i++){
+                            //for($i = 0; $i<sizeof($discountedProducts); $i++){
                                 if(in_array($inputProductObject1, $discountProducts)){
                                     if($discount->min_price === NULL || ($discount->min_price !== NULL && $discount->min_price <= $product->productPrice)){
                                         if($discount->price !== NULL){
@@ -842,7 +843,8 @@ class DiscountCalculator{
                                         array_push($discountIds, $discount->id);   
                                     }
                                 }
-                            }
+                            //}
+                            $i++;
                         }
                     }else{
                         for($i=0; $i<sizeof($discountProducts); $i++){
@@ -862,9 +864,10 @@ class DiscountCalculator{
                     }
                 }else if($discount->type === 'category'){
                     if(count($discountCategories) !== 0){
+                        $i = 0;
                         foreach($products as $product){
                             $inputCategoryObject1->category_id = $product->categoryId;
-                            for($i = 0; $i<sizeof($discountProducts); $i++){
+                            //for($i = 0; $i<sizeof($discountProducts); $i++){
                                 if(in_array($inputCategoryObject1, $discountCategories)){
                                     if($discount->min_price === NULL || ($discount->min_price !== NULL && $discount->min_price <= $product->productPrice)){
                                         if($discount->price !== NULL){
@@ -879,7 +882,8 @@ class DiscountCalculator{
                                         array_push($discountIds, $discount->id); 
                                     }
                                 }
-                            }
+                            //}
+                            $i++;
                         }
                     }else{
                         for($i=0; $i<sizeof($discountProducts); $i++){
