@@ -122,4 +122,20 @@ class BannerController extends Controller
         $banners = [$firstBanner, $secondBanner, $thirdBanner];
         echo json_encode(array('status' => 'done', 'message' => 'banners successfully found', 'banners' => $banners));
     }
+
+    public function topSixLikedCategores(Request $request){
+        $time = time();
+        $banners = DB::select(
+            "SELECT id, img AS image, anchor AS url 
+            FROM banners 
+            WHERE isBanner = 7 AND isActive = 1 AND (start_date = 0 OR start_date <= $time) AND (end_date = 0 OR end_date >= $time) 
+            ORDER BY _order ASC, `date` DESC 
+            LIMIT 6"
+        );
+        if(count($banners) === 0){
+            echo json_encode(array('status' => 'done', 'found' => false, 'banners' => [], 'message' => 'could not find liked banners', 'دسته بنده‌های پرطرفدار یافت نشد'));
+            exit();
+        }
+        echo json_encode(array('status' => 'done', 'found' => true, 'banners'=> $banners, 'message' => 'banners successfully are found'));
+    }
 }

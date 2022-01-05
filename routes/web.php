@@ -238,9 +238,41 @@ Route::get('/sendMessage', function(){
 });
 
 Route::get('/helloworld', function(){
-    echo jdate('Y-m-d H:i:s', 1641124271);
-    echo '<br />';
-    echo date('Y-m-d H:i:s', 1641124271);
-    echo '<br />';
-    
+    $data1 = [
+        'category' => 'اکلیل',
+        'facets' => [],
+        'indexName' => 'products',
+        'query' => null,
+        'page' => 1,
+        'size' => 12,
+        'sort' => 'has_stock'
+    ];
+
+    $data2 = [
+        'category' => ' اکلیل ',
+        'facets' => [],
+        'indexName' => 'products',
+        'query' => null,
+        'page' => 1,
+        'size' => 12,
+        'sort' => 'has_stock'
+    ];
+
+    $data = json_encode($data2);
+  
+    $url = 'http://search.honari.com/api/v1/management/search/searchWithCategory';
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        //'Authorization: Bearer ',
+        //'Content-Length: ' . strlen($jsonData)
+    ));
+    $result = curl_exec($ch);
+    var_dump($result);
 });

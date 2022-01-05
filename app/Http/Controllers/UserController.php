@@ -48,7 +48,8 @@ class UserController extends Controller
                         'address' => $user->address, 
                         'latitude' => $user->lat, 
                         'longitude' => $user->lng,
-                        'balance' => $user->user_stock
+                        'balance' => $user->user_stock,
+                        'eui' => $user->ex_user_id,
                     );
         echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'user information successfully found', 'information' => $information));
     }

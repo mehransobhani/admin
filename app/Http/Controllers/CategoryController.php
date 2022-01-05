@@ -273,4 +273,39 @@ class CategoryController extends Controller
             echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
         }
     }
+
+    public function topSixBestSellerCategories(Request $request){
+        $selectedCategories = [];
+        $categories = DB::select(
+            "SELECT S0.co, S0.product_id, CI.ads_title, CI.ads_image 
+            FROM (
+                SELECT DISTINCT COUNT(S1.id) AS co, S1.product_id 
+                FROM order_items S1 
+                WHERE S1.order_id IN (
+                    SELECT S2.id FROM (
+                        SELECT S3.id 
+                        FROM orders S3 
+                        WHERE S3.stat = 9 
+                        ORDER BY S3.id DESC 
+                        LIMIT 50
+                    ) AS S2
+                ) GROUP by S1.product_id
+                ORDER BY COUNT(S1.id) DESC LIMIT 20
+            ) AS S0 
+            INNER JOIN product_category PC ON PC.product_id = S0.product_id 
+            INNER JOIN category C on C.id = PC.category  
+            INNER JOIN category_info CI ON C.id = CI.category_id  
+            ORDER BY PC.category DESC "
+        );
+        if(count($categories) === 0){
+            echo json_encode(array('status' => 'failed', 'message' => 'could not find any category', 'umessage' => 'دسته‌بندی های پرطرفدار یافت نشد'));
+            exit();
+        }
+        foreach($categories as $category){  
+            if(in_array($category, $selectedCategories)){
+                array_push($selectedCategories, $category);
+            }
+        }
+        
+    }
 }

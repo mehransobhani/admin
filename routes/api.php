@@ -199,7 +199,8 @@ Route::get('/get-six-new-product', function(){
         Route::post('/user-final-cart',                 [CartController::class,             'cartFinalInformation']); // OK!
         Route::post('/user-confirm-order',              [OrderController::class,            'confirmOrder']); // TO BE TESTED! *
         Route::post('/user-cancel-order',               [OrderController::class,            'cancelOrder']); // TO BE TESTED! *
-        Route::post('/user-charge-wallet',              [WalletController::class,           'chargeWallet']);
+        Route::post('/user-charge-wallet',              [WalletController::class,           'chargeWallet']); // OK!!
+        Route::post('/user-set-product-reminder',       [ProductController::class,          'setProductReminder']); // TO BE TESTED!
 
         /***| BANK ROUTES |***/
        

@@ -47,9 +47,61 @@ class SearchController extends Controller
             echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter', 'umessage' => 'ورودی ها کافی نیست'));
             exit();
         }
-        $category = $request->category;
+        $category = trim($request->category);
         $facets = $request->facets;
         $page = $request->page;
+        $found = false;
+        /*$beginingWhitespaceCategoreies = DB::select(
+            "SELECT id, name, url, parentId FROM category WHERE name LIKE ' %' AND name NOT LIKE ' % ' AND hide = 0 "
+        );
+        $finishingWhitespaceCategories = DB::select(
+            "SELECT id, name, url, parentId FROM category WHERE name LIKE '% ' AND name NOT LIKE ' % ' AND hide = 0 "
+        );
+        $bothSideWhitespaceCatedgories = DB::select(
+            ""
+        );*/
+        $beginingWhitespaceCategoreies = [
+            'نمد دوزی',
+            'بند کیف', 
+            'خمیر دورگیر ويترای',
+            'بیدوسفر',
+            'چسب ،وارنیش ، مدیوم',
+            'ابزار و لوازم خیاطی',
+            'چوب طبیعی',
+            'وارنیش فیکساتیو و براق کننده'
+        ];
+        $finishingWhitespaceCategories = [
+            'تخته و گیره',
+            'قیچی',
+            'قلم مو',
+            'ظروف سرامیکی',
+            'شابلون هویه کاری',
+            'کاموا',
+            'بسته های شروع و پروژه ها',
+            'ملیله',
+            'پارچه شماره دوزی',
+            'نخ کنفی',
+            'رنگ تخته سیاه',
+            'چرم طبیعی',
+            'پروژه شماره دوزی',
+            'سنگ عقیق',
+            'پارچه کتان',
+            'رزین و چوب',
+            'مهره فیمو واشری',
+            'لوازم شمع سازی',
+            'پارافین'
+        ];
+        $bothSideWhitespaceCatedgories = [
+            'اکلیل'
+        ];
+        
+        if(in_array($category, $beginingWhitespaceCategoreies)){
+            $category = ' ' . $category;
+        }else if(in_array($category, $finishingWhitespaceCategories)){
+            $category = $category . ' ';
+        }else if(in_array($category, $bothSideWhitespaceCatedgories)){
+            $category = ' ' . $category . ' ';
+        }
 
         $data = [
             'category' => $category,

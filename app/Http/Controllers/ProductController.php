@@ -298,28 +298,6 @@ class ProductController extends Controller
         
     }
 
-    public function topSixBestsellerProducts(Request $request){
-        $time = time();
-
-        /*****| LATEST ORDERS WHICH PURCHASED AND ARE NOT CANCELED |*****/
-        /*$latestFortyOrders = DB::select(
-            "SELECT OI.product_id 
-            FROM orders O INNER JOIN order_items OI ON O.id = OI.order_id 
-            WHERE O.stat NOT IN (6,7) 
-            ORDER BY O.date DESC 
-            LIMIT 10"
-        );*/
-        $latestFortyOrders = DB::select(
-            "SELECT OI.product_id FROM order_items OI where OI.order_id = (SELECT O.id  FROM orders O WHERE O.id = 202123 ORDER BY O.date DESC )"
-        );
-        $productIdArray = [];
-        foreach($latestFortyOrders as $item){
-            array_push($productIdArray, $item->product_id);
-        }
-        //$count = array_count_values($productIdArray);
-        var_dump($productIdArray);
-    }
-
     public function topSixDiscountedProducts(Request $request){
         $time = time();
         $discountInformation = DB::select(
@@ -405,5 +383,69 @@ class ProductController extends Controller
         $selectedProducs = DiscountCalculator::calculateProductsDiscount($selectedProducs);
         echo json_encode(array('status' => 'done', 'found' => true, 'count' => $count, 'message' => 'no result found', 'products' => $selectedProducs));
     }
+    public function topSixBestsellerProducts(Request $request){
+        $time = time();
+        $orders = DB::select(
+            "SELECT * 
+            FROM orders O
+            INNER JOIN order_items OI ON O.id = OI.order_id 
+            WHERE O.stat = 9 
+            ORDER BY O.date DESC 
+            LIMIT 30 "
+        );
+        $newQuery = DB::select(
+            "SELECT OI.product_id, OI.count  
+            FROM order_items OI 
+            WHERE OI.order_id IN (
+                SELECT O.id 
+                FROM orders O 
+                WHERE O.stat = 9 
+                ORDER BY O.date DESC 
+                LIMIT 30 
+            )"
+        );
+        
+    }
 
+    public function setProductReminder(Request $request){
+        if(!isset($request->productId)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+        $userId = $request->userId;
+        $productId = $request->productId;
+        $user = DB::select("SELECT * FROM users WHERE id = $userId LIMIT 1");
+        $user = $user[0];
+        $time = time();
+        $product = DB::select(
+            "SELECT PP.id 
+            FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id 
+            WHERE P.id = $productId AND P.prodStatus = 1 AND PP.status = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock ) 
+            ORDER BY P.id DESC 
+            LIMIT 1"
+        );
+        
+        if(count($product) !== 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'product already is available', 'umessage' => 'محصول درحال حاضر موجود است'));
+            exit(); 
+        } 
+        $userPreviousRequestOfThisProduct = DB::select( 
+            "SELECT id 
+            FROM remember_products 
+            WHERE user = '$user->username' AND sended = 0 AND product_id = $productId 
+            LIMIT 1 "
+        );
+        if(count($userPreviousRequestOfThisProduct) !== 0){
+            echo json_encode(array('status' => 'done', 'message' => 'products reminder had been set', 'umessage' => 'شما درگذشته یادآور این محصول را ثبت کرده بودید'));
+            exit();
+        }
+        DB::insert(
+            "INSERT INTO remember_products (
+                product_id, user, sended, date
+            ) VALUES (
+                $productId, '$user->username', 0, $time
+            )"
+        );
+        echo json_encode(array('status' => 'done', 'message' => 'reminder successfully got set', 'umessage' => 'یادآور با موفقیت ایجاد شد'));
+    }
 }
