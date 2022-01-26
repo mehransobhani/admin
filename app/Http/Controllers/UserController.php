@@ -71,14 +71,24 @@ class UserController extends Controller
     }
 
     //@route: /api/UserUpdate <--> @middleware: ApiAuthenticationMiddleware
-    /*public function updateUser(Request $request){
-        $token = '';
-        if(!isset($request->hasHeader('token')) || !isset($request->id)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'ورودی کافی نیست'));
+    public function updateUser(Request $request){
+        $headers = $request->header();
+        if(!isset($headers['token'])){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'header is missing'));
             exit();
         }
-        $token = $request->hasHeader('token');
+        $header = $headers['token'][0];
+        if(!isset($request->id)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
         $exUserId = $request->id;
+        $key = "12345^&*(H0n@r!54321)*&^54321";
+        $generagedKey = md5(md5($exUserId . "." . $key));
+        if($generagedKey !== $header){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'headers mismatch'));
+            exit();
+        }
         $user = DB::select(
             "SELECT * FROM users WHERE ex_user_id = $exUserId "
         );
@@ -131,7 +141,7 @@ class UserController extends Controller
             national_code = '$newUser->national_code', `address` = '$newUser->address', 
             lat = $newUser->lat, lng = $newUser->lng, 
             profilepic = '$newUser->profilepic', mobile = '$newUser->mobile', `role` = '$newUser->role' 
-            WHERE id = $user->id"
+            WHERE id = $user->id "
         );
 
         if(!$updateResult){
@@ -139,7 +149,7 @@ class UserController extends Controller
             exit();
         }
         echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));
-    }*/
+    }
 
     public function createuserKey($username){
         $hash = md5('amin' . time()) . 'honari' . md5(strrev($username) . 'behnam');
@@ -282,6 +292,22 @@ class UserController extends Controller
             )"
         );
 
+        $courses = DB::select(
+            "SELECT id, `name`, cover_image, price, `off`, kind, urlfa FROM courses WHERE `status` = 1 ORDER BY create_at DESC LIMIT 4 "
+        );
+        if(count($courses) === 0){
+            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'could not find any available course', 'courses' => []));
+            exit();
+        }
+        foreach($courses as $course){
+            if($course->kind === 'class'){
+                $course->url = 'https://honari.com/academy/courses/' . $course->urlfa;
+            }else if($course->kind === 'bundle'){
+                $course->url = 'https://honari.com/academy/bundles/' . $course->urlfa;
+            }
+            $course->image = 'https://academy.honari.com/warehouse/images/classes/' + $course->cover_image;
+        }
+        var_dump($courses);
         /*
 
         #################################################################

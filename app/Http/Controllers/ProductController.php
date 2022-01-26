@@ -305,16 +305,16 @@ class ProductController extends Controller
                     PP.id AS productPackId, P.prodName_fa AS productName, 
                     P.prodID, P.url AS productUrl, P.prodStatus, 
                     P.prodUnite AS productUnitName, 
-                    PP.stock AS maxCount,
+                    PP.stock AS maxCount, 
                     PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS ProductLabel, 
-                    PP.count AS productUnitCount
+                    PP.count AS productUnitCount 
             FROM discount_dependencies DDT INNER JOIN discounts DT ON DT.id = DDT.discount_id INNER JOIN products P ON DDT.dependency_id = P.id INNER JOIN product_pack PP ON DDT.dependency_id = PP.product_id
             WHERE DDT.discount_id IN (
                 SELECT D.id 
                 FROM discounts D 
-                WHERE D.type = 'product' AND 
-                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.dependency_type IN ('province', 'user', 'category')) = 0 AND 
-                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.dependency_type = 'product' ) <> 0 AND 
+                WHERE D.type_id = 1 AND 
+                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.type_id IN (2,3,4)) = 0 AND 
+                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.type_id = 1 ) <> 0 AND 
                     D.reusable = 1 AND D.status = 1 AND D.neworder = 0 AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND 
                     ((D.expiration_date IS NULL AND D.start_date IS NOT NULL AND D.start_date <= $time AND D.finish_date IS NOT NULL AND D.finish_date >= $time) OR (D.expiration_date IS NOT NULL AND $time <= D.expiration_date AND D.start_date IS NULL AND D.finish_date IS NULL)) AND 
                     D.code IS NULL 

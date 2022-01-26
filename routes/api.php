@@ -5,6 +5,7 @@ use App\Http\Controllers\BankController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DeliveryServiceController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\HomeController;
@@ -157,6 +158,7 @@ Route::get('/get-six-new-product', function(){
     Route::post('/filtered-paginated-category-products',[CategoryController::class, 'filterPaginatedcategoryProducts']);
     Route::post('/category-filters',                    [CategoryController::class, 'categoryFilters']);
     Route::post('/category-breadcrumb',                 [CategoryController::class, 'categoryBreadcrumb']);
+    Route::get('/top-six-categories',                   [CategoryController::class, 'topSixBestSellerCategories']);
 
     /*##### Banner routes #####*/
     Route::post('/category-banners',                    [BannerController::class, 'categoryBanners']);
@@ -205,8 +207,15 @@ Route::get('/get-six-new-product', function(){
         /***| BANK ROUTES |***/
        
         Route::post('/user-pasargad-charge-result',     [BankController::class,             'pasargadBankChargeResult']); // OK! 
-        Route::post('/user-pasargad-payment-result',    [BankController::class,             'pasargadBankPaymentResult']); // TO BE TESTED!
+        Route::post('/user-pasargad-payment-result',    [BankController::class,             'pasargadBankPaymentResult']); // OK!
+
+        /***| COMMENT ROUTES |***/
+        Route::post('/add-comment',                     [CommentController::class,          'addComment']); // TO BE TESTED!
+        Route::post('/reply-to-comment',                [CommentController::class,          'replyToComment']); // OK!
     });   
+
+    /***| SEARCH ROUTES |***/
+    Route::post('/product-comments',                    [CommentController::class,          'productComments']); // OK!
 
     /***| SEARCH ROUTES |***/
     Route::post('/search-autocomplete',                 [SearchController::class,           'getAutocomplete']); // OK!
@@ -221,3 +230,7 @@ Route::get('/get-six-new-product', function(){
 
     /*#####| USER API ROUTES |#####*/
     Route::post('/UserUpdate',                          [UserController::class,             'updateUser']); // TO BE TESTED!
+
+    Route::get('/testdate', function(){
+        echo jdate('y-m-d H:i:s', 1608538986);
+    });

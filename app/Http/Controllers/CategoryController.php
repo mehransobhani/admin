@@ -275,37 +275,71 @@ class CategoryController extends Controller
     }
 
     public function topSixBestSellerCategories(Request $request){
-        $selectedCategories = [];
-        $categories = DB::select(
-            "SELECT S0.co, S0.product_id, CI.ads_title, CI.ads_image 
+        /*$categories = DB::select(
+            "SELECT COUNT(RESULT.categoryId) AS `count`, 
+                RESULT.categoryId, 
+                RESULT.categoryName, 
+                RESULT.categoryUrl 
             FROM (
-                SELECT DISTINCT COUNT(S1.id) AS co, S1.product_id 
-                FROM order_items S1 
-                WHERE S1.order_id IN (
-                    SELECT S2.id FROM (
-                        SELECT S3.id 
-                        FROM orders S3 
-                        WHERE S3.stat = 9 
-                        ORDER BY S3.id DESC 
-                        LIMIT 50
-                    ) AS S2
-                ) GROUP by S1.product_id
-                ORDER BY COUNT(S1.id) DESC LIMIT 20
-            ) AS S0 
-            INNER JOIN product_category PC ON PC.product_id = S0.product_id 
-            INNER JOIN category C on C.id = PC.category  
-            INNER JOIN category_info CI ON C.id = CI.category_id  
-            ORDER BY PC.category DESC "
+                SELECT O.id as orderId, 
+                    C.id AS categoryId,
+                    C.name AS categoryName, 
+                    C.url AS categoryUrl 
+                FROM orders O 
+                INNER JOIN order_items OI ON O.id = OI.order_id 
+                INNER JOIN product_category PC ON OI.product_id = PC.product_id 
+                INNER JOIN category C ON PC.category = C.id 
+                WHERE O.stat = 9 
+                ORDER BY O.id DESC 
+                LIMIT 60
+                ) AS RESULT  
+            GROUP BY RESULT.categoryId, RESULT.categoryName, RESULT.categoryUrl 
+            ORDER BY COUNT(RESULT.categoryId) DESC 
+            LIMIT 4"
+        );*/
+        $categories = DB::select(
+            "SELECT COUNT(RESULT.categoryId) AS `count`, 
+                RESULT.categoryId, 
+                RESULT.categoryName, 
+                RESULT.categoryUrl 
+            FROM (
+                SELECT  
+                    C.id AS categoryId,
+                    C.name AS categoryName, 
+                    C.url AS categoryUrl 
+                FROM product_stock PS 
+                INNER JOIN product_category PC ON PS.product_id = PC.product_id 
+                INNER JOIN category C ON PC.category = C.id 
+                WHERE PS.kind IN (5, 6) 
+                ORDER BY PS.id DESC   
+                LIMIT 50 
+                ) AS RESULT  
+            GROUP BY RESULT.categoryId, RESULT.categoryName, RESULT.categoryUrl
+            ORDER BY COUNT(RESULT.categoryId) DESC 
+            LIMIT 6"
         );
         if(count($categories) === 0){
-            echo json_encode(array('status' => 'failed', 'message' => 'could not find any category', 'umessage' => 'دسته‌بندی های پرطرفدار یافت نشد'));
+            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'top categories not found', 'categories' => []));
             exit();
         }
-        foreach($categories as $category){  
-            if(in_array($category, $selectedCategories)){
-                array_push($selectedCategories, $category);
+        foreach($categories as $category){
+            $product = DB::select(
+                "SELECT P.prodID 
+                FROM products P 
+                INNER JOIN product_category PC ON P.id = PC.product_id 
+                WHERE P.stock > 0 AND 
+                    P.prodStatus = 1 AND 
+                    PC.category = $category->categoryId 
+                ORDER BY P.id DESC 
+                LIMIT 1"
+            );
+            if(count($product) === 0){
+                $category->categoryImage = '';
+            }else{
+                $product = $product[0];
+                $category->categoryImage = 'https://honari.com/image/resizeTest/shop/_200x/thumb_' . $product->prodID . '.jpg';
             }
         }
-        
+        echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'categories successfully found', 'categories' => $categories));
     }
 }
