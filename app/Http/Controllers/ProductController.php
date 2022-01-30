@@ -26,7 +26,7 @@ class ProductController extends Controller
         }
         $productId = $request->productId;
         $product = DB::select(
-            "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
+            "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
             FROM products P
             INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
             WHERE P.id = $productId AND PP.status = 1");
@@ -36,33 +36,34 @@ class ProductController extends Controller
         }
         $product = $product[0];
         $productStatus = -1;
-            if($product->prodStatus == 1 && $product->status == 1 && $product->packStock >0 && $product->productStock >0 && ($product->count * $product->packStock <= $product->productStock) ){
-                $productStatus = 1;
-            }
-            $productObject = new stdClass();
-            $productObject->productId = $product->id;
-            $productObject->productPackId = $product->packId;
-            $productObject->productName = $product->prodName_fa;
-            $productObject->prodID = $product->prodID;
-            $productObject->categoryId = $product->category;
-            $productObject->productPrice = $product->price;
-            $productObject->productUrl = $product->url;
-            $productObject->productBasePrice = $product->base_price;
-            $productObject->maxCount = $product->packStock; // <-- OK!
-            $productObject->productUnitCount = $product->count;
-            $productObject->productUnitName = $product->prodUnite;
-            $productObject->productLabel = $product->label;
-            $productObject->aparat = $product->aparat;
-            $productObject->productStatus = $productStatus;
-            
-            if($productStatus === -1){
-                $productObject->productPrice = 0;
-                $productObject->productBasePrice = 0;
-            }
+        if($product->prodStatus == 1 && $product->status == 1 && $product->packStock >0 && $product->productStock >0 && ($product->count * $product->packStock <= $product->productStock) ){
+            $productStatus = 1;
+        }
+        $productObject = new stdClass();
+        $productObject->productId = $product->id;
+        $productObject->productPackId = $product->packId;
+        $productObject->productName = $product->prodName_fa;
+        $productObject->prodID = $product->prodID;
+        $productObject->categoryId = $product->category;
+        $productObject->productPrice = $product->price;
+        $productObject->productUrl = $product->url;
+        $productObject->productBasePrice = $product->base_price;
+        $productObject->maxCount = $product->packStock; // <-- OK!
+        $productObject->productUnitCount = $product->count;
+        $productObject->productUnitName = $product->prodUnite;
+        $productObject->productLabel = $product->label;
+        $productObject->aparat = $product->aparat;
+        $productObject->productOtherImages = $product->prodOimages;
+        $productObject->productStatus = $productStatus;
+        
+        if($productStatus === -1){
+            $productObject->productPrice = 0;
+            $productObject->productBasePrice = 0;
+        }
 
-            $productObject = DiscountCalculator::calculateProductDiscount($productObject);
-            echo json_encode(array('status' => 'done', 'message' => 'product information received', 'information' => $productObject));
-            exit();
+        $productObject = DiscountCalculator::calculateProductDiscount($productObject);
+        echo json_encode(array('status' => 'done', 'message' => 'product information received', 'information' => $productObject));
+        exit();
         
         /*if(isset($request->id)){
             $product = DB::select("SELECT * FROM products WHERE id = $request->id");

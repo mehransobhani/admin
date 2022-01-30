@@ -135,6 +135,7 @@ class CommentController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'product not found', 'umessage' => 'محصول یافت نشد'));
             exit();
         }
+
         $queryResult = DB::insert(
             "INSERT INTO comments (
                 comment, `date`, sender, `user_id`, receiver, replyToID, onSection, onIDofSection, repliersId, isReported, EditedAt, visibilityStatus, isNew
