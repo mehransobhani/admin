@@ -33,13 +33,10 @@ class CartController extends Controller
                 "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PP.id = $key AND PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.stock * PP.count <= P.stock)");
+                WHERE PP.id = $key AND PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.stock * PP.count <= P.stock) 
+                LIMIT 1 ");
             if(count($product) !== 0){
                 $product = $product[0];
-                $productStatus = -1;
-                if($product->prodStatus == 1 && $product->status === 1 && $product->packStock !==0 && $product->productStock !== 0 && ($product->count * $product->packStock <= $product->productStock) ){
-                    $productStatus = 1;
-                }
                 $productObject = new stdClass();
                 $productObject->productId = $product->id;
                 $productObject->productPackId = $product->packId;
@@ -54,6 +51,30 @@ class CartController extends Controller
                 $productObject->productUnitName = $product->prodUnite;
                 $productObject->productLabel = $product->label;
                 array_push($cartProducts, $productObject);
+            }else{
+                $product = DB::select(
+                    "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodUnite, PP.label, PP.count, PC.category 
+                    FROM products P
+                    INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
+                    WHERE PP.id = $key AND PP.status = 1 AND P.prodStatus = 1 
+                    LIMIT 1");
+                if(count($product) !== 0){
+                    $product = $product[0];
+                    $productObject = new stdClass();
+                    $productObject->productId = $product->id;
+                    $productObject->productPackId = $product->packId;
+                    $productObject->productName = $product->prodName_fa;
+                    $productObject->prodID = $product->prodID;
+                    $productObject->categoryId = $product->category;
+                    $productObject->productPrice = 0;
+                    $productObject->productUrl = $product->url;
+                    $productObject->productBasePrice = 0;
+                    $productObject->productCount = $value->count;
+                    $productObject->productUnitCount = 0;
+                    $productObject->productUnitName = $product->prodUnite;
+                    $productObject->productLabel = $product->label;
+                    array_push($cartProducts, $productObject);
+                }
             }
         }
         $cartProducts = DiscountCalculator::calculateProductsDiscount($cartProducts);
@@ -549,11 +570,12 @@ class CartController extends Controller
                 "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PP.status = 1 AND P.prodStatus = 1 AND PP.id = $cartItem->id");
+                WHERE PP.status = 1 AND P.prodStatus = 1 AND PP.id = $cartItem->id 
+                LIMIT 1 ");
             if(count($product) !== 0){
                 $product = $product[0];
                 $productStatus = -1;
-                if($product->prodStatus == 1 && $product->status === 1 && $product->packStock !==0 && $product->productStock !== 0 && ($product->count * $product->packStock <= $product->productStock) ){
+                if($product->prodStatus == 1 && $product->status == 1 && $product->packStock != 0 && $product->productStock != 0 && ($product->count * $product->packStock <= $product->productStock)){
                     $productStatus = 1;
                 }
                 $productObject = new stdClass();
@@ -566,10 +588,11 @@ class CartController extends Controller
                 $productObject->productBasePrice = $product->base_price;
                 $productObject->productCount = $cartItem->count;
                 $productObject->productUnitName = $product->prodUnite;
-                $productObject->productUnitCount = $product->count;
+                $productObject->productUnitCount = 0;
                 $productObject->productUrl = $product->url;
                 $productObject->productLabel = $product->label;
-                if($productStatus === -1){
+                if($productStatus === -1)
+                {
                     $productObject->productPrice = 0;
                     $productObject->productBasePrice = 0;
                 }

@@ -316,7 +316,7 @@ class DiscountCalculator{
         $responseObject = new stdClass();
         $discount = DB::select(
             "SELECT * 
-            FROM discounts d
+            FROM discounts D
             WHERE 
                 D.code = '$giftCode' AND
                 D.status = 1 AND 
