@@ -449,4 +449,43 @@ class ProductController extends Controller
         );
         echo json_encode(array('status' => 'done', 'message' => 'reminder successfully got set', 'umessage' => 'یادآور با موفقیت ایجاد شد'));
     }
+
+    public function productGoogleTagManagerInformation(Request $request){
+        if(!isset($request->productId)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }
+
+        $productId = $request->productId;
+
+        $information = DB::select(
+            "SELECT PP.price AS productPrice, P.prodUnite AS productUnit, C.name AS productCategory 
+            FROM products P 
+            INNER JOIN product_pack PP ON P.id = PP.product_id 
+            INNER JOIN product_category PC ON P.id = PC.product_id 
+            INNER JOIN category C ON PC.category = C.id 
+            WHERE P.id = $productId AND P.prodStatus = 1 AND P.stock > 0 AND PP.stock > 0 AND PP.status = 1 
+            LIMIT 1 "
+        );
+        
+        if(count($information) !== 0){
+            $information = $information[0];
+            echo json_encode(array('status' => 'done', 'message' => 'product information successfully found', 'productUnit' => $information->productUnit, 'productPrice' => $information->productPrice, 'productCategory' => $information->productCategory));
+        }else{
+            $information = DB::select(
+                "SELECT 0 AS productPrice, P.prodUnite AS productUnit, C.name AS productCategory 
+                FROM products P 
+                INNER JOIN product_category PC ON P.id = PC.product_id 
+                INNER JOIN category C ON PC.category = C.id 
+                WHERE P.id = $productId
+                LIMIT 1 "
+            );
+            if(count($information) !== 0){
+                $information = $information[0];
+                echo json_encode(array('status' => 'done', 'message' => 'product information successfully found', 'productUnit' => $information->productUnit, 'productPrice' => $information->productPrice, 'productCategory' => $information->productCategory));
+            }else{
+                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'product not found', 'umessage' => 'محصول موردنظر یافت نشد'));
+            }
+        }
+    }
 }

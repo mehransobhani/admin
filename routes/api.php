@@ -231,6 +231,8 @@ Route::get('/get-six-new-product', function(){
     /*#####| USER API ROUTES |#####*/
     Route::post('/UserUpdate',                          [UserController::class,             'updateUser']); // TO BE TESTED!
 
+    Route::post('/product-gtm-information',             [ProductController::class,          'productGoogleTagManagerInformation']);
+
     Route::get('/testdate', function(){
         echo jdate('y-m-d H:i:s', 1608538986);
     });
