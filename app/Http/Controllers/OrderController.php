@@ -326,6 +326,15 @@ class OrderController extends Controller
             }
         }
         
+        $userLat = $user->lat;
+        $userLng = $user->lng;
+        if($userLat == null){
+            $userLat = 'NULL';
+        }
+        if($userLng == null){
+            $userLng = 'NULL';
+        }
+        
         /***| insert order information into 'order_info' table |***/
         DB::insert(
             "INSERT INTO order_info
