@@ -247,7 +247,7 @@ class OrderController extends Controller
                 $productObject->packStock = $productInfo->packStock;
                 array_push($cartProducts, $productObject);
                 if($productInfo->prodWeight !== NULL){
-                    $totalWeight += $productInfo->prodWeight;
+                    $totalWeight += ($productInfo->prodWeight) + ($value->count);
                 }
                 if($productInfo->buyPrice !== NULL){
                     $totalBuyPrice += ($productInfo->count * ($productInfo->buyPrice * $productInfo->count));
@@ -493,7 +493,7 @@ class OrderController extends Controller
                     $userId, 
                     (-1 * $orderItem->count * $orderItem->pack_count), 
                     $orderId, 
-                    6, 
+                    5, 
                     'کاهش موجودی - ثبت سفارش - پرداخت از کیف پول',
                     0,
                     "NULL",

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
+use Exception;
 use stdClass;
 
 class DeliveryServiceController extends Controller
@@ -26,7 +27,12 @@ class DeliveryServiceController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
             exit();
         }
-        $addressPack = json_decode($user->address)->addressPack;
+        try{
+            $addressPack = json_decode($user->address)->addressPack;
+        }catch(Exception $e){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user address has wrong format', 'umessage' => 'خطا هنگام خواندن آدرس کابر'));
+            exit();
+        }
         if($addressPack->province == -1){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
             exit();
@@ -46,11 +52,11 @@ class DeliveryServiceController extends Controller
         $cityId = $cityId[0];
         $cityId = $cityId->id;
         $shoppingCart = DB::select(
-                                "SELECT products 
-                                FROM shoppingCarts
-                                WHERE user_id = $userId AND active = 1
-                                ORDER BY id DESC
-                                LIMIT 1"
+            "SELECT products 
+            FROM shoppingCarts
+            WHERE user_id = $userId AND active = 1
+            ORDER BY id DESC
+            LIMIT 1"
         );
         if(count($shoppingCart) == 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'there is not any available shopping cart', 'umessage' => 'سبد خریدی یافت نشد'));
@@ -91,7 +97,7 @@ class DeliveryServiceController extends Controller
                 $pi->categoryId = $productInfo->category;
                 array_push($productsInformation,$pi);
                 if($productInfo->weight !== NULL && $productInfo->weight >= 0){
-                    $totalWeight += $productInfo->weight;
+                    $totalWeight += ($productInfo->weight * $value->count);
                 }
                 if($productInfo->width !== NULL && $productInfo->height !== NULL && $productInfo->length !== NULL){
                     $volume = $productInfo->width * $productInfo->height * $productInfo->length;
@@ -105,10 +111,8 @@ class DeliveryServiceController extends Controller
                     }
                     if($maxLength === 0){
                         $maxLength = $max;
-                    }else{
-                        if($max > $maxLength){
-                            $maxLength = $max;
-                        }
+                    }else if($max > $maxLength){
+                        $maxLength = $max;
                     }
                 }
             }
@@ -120,8 +124,12 @@ class DeliveryServiceController extends Controller
         }
         $deliveryOptions = [];
         foreach($deliveryServices as $service){
-            $deliverServicePlans = DB::select("SELECT * FROM delivery_service_plans WHERE service_id = $service->id ORDER BY min_weight ASC");;
-            if(count($deliverServicePlans) == 0){
+            $deliveryServicePlans = DB::select("SELECT * 
+                FROM delivery_service_plans 
+                WHERE service_id = $service->id AND 
+                (((city_id IS NULL AND province_id = $provinceId) OR (province_id = $provinceId)) OR (city_id = $cityId)) 
+                ORDER BY min_weight ASC");;
+            if(count($deliveryServicePlans) == 0){
                 continue;
             }
             $limitationAllowed = false;
@@ -162,7 +170,35 @@ class DeliveryServiceController extends Controller
             $s->id = $service->id;
             $s->ename = $service->name;
             $s->fname = $service->fa_name;
-            if($service->id === 11){
+            // $dsp = $deliveryServicePlans[0];
+            // if($dsp)
+            if(count($deliveryServicePlans) === 1){
+                $deliveryServicePlans = $deliveryServicePlans[0];
+                if($deliveryServicePlans->max_weight == null){
+                    $s->price = $deliveryServicePlans->price;
+                }
+            }else{
+                $calculated = false;
+                foreach($deliveryServicePlans as $dsp){
+                    if(!$calculated && $totalWeight >= $dsp->min_weight && $totalWeight <= $dsp->max_weight){
+                        $calculated = true;
+                        $s->price = $dsp->price;
+                    }
+                }
+                if(!$calculated){
+                    $lastPricePlan = $$deliveryServicePlans[count($deliveryServicePlans) - 1];
+                    $price = $lastPricePlan->price;
+                    for($w1 = $lastPricePlan->max_weight, $w2 = $lastPricePlan->max_weight + 1000; $w1 < $w2 ;$w1 += 1000, $w2 += 1000){
+                        $price += 2500;
+                        if($w1 <= $totalWeight && $totalWeight < $w2){
+                            $s->price = $price;
+                            $calculated = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            /*if($service->id === 11){
                 $s->price = 12000;
             }else if($service->id == 12){
                 $s->price = 15000;
@@ -195,7 +231,7 @@ class DeliveryServiceController extends Controller
                         }
                     }
                 }
-            }
+            }*/
             array_push($deliveryOptions, $s);
         }
         $deliveryOptions = DiscountCalculator::calculateDeliveryDiscount($userId, 1, $totalCartPrice, $productsInformation, $deliveryOptions);

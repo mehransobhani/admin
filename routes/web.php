@@ -275,4 +275,5 @@ Route::get('/helloworld', function(){
     ));
     $result = curl_exec($ch);
     var_dump($result);
+
 });

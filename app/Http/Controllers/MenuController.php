@@ -26,7 +26,7 @@ class MenuController extends Controller
             $info = new stdClass;
             $info->parentName = $parent->name;
             $info->parentUrl = $parent->url;
-            $info->parentId = $parent->id;
+            $info->parentId = $parent->id;  
             $info->children = array();
             $children = DB::select("SELECT name, url, parent_id, num FROM menu WHERE parent_id = $parent->id AND visiable = 1 AND level = 2 AND is_mobile = 0 ORDER BY num ASC");
             if(count($children) !== 0){
@@ -38,5 +38,4 @@ class MenuController extends Controller
         }
         echo json_encode(array('status' => 'done', 'found' => true, 'menu' => $responseArray, 'message' => 'menu items successfully found'));
     }
-    
 }
