@@ -3,6 +3,7 @@ namespace App\Classes;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 use App\Classes\ShippingCalculator;
+use App\Http\Controllers\DeliveryServiceController;
 use Dotenv\Util\Str;
 
 class DiscountCalculator{ 
@@ -41,6 +42,7 @@ class DiscountCalculator{
                         $discountDependencyInformation = DB::select(
                             "SELECT * FROM discount_dependencies WHERE discount_id = $discount->id AND dependency_id = $product->productId ORDER BY id DESC LIMIT 1 "
                         );
+                        //this is going to be fantastic
                         if(count($discountDependencyInformation) !== 0){
                             $discountDependencyInformation = $discountDependencyInformation[0];
                             if($discountDependencyInformation->final_stock === 0){
@@ -476,7 +478,7 @@ class DiscountCalculator{
                 $discountPrice = $discount->price;
             }else if($discount->percent !== NULL){
                 $dp = $discount->percent * $cartPrice;
-                //$dp = floor($dp / 100) * $dp;
+                $dp = floor($dp / 100);
                 $dp -= $dp % 50;
                 if($dp > $discount->max_price && $discount->max_price !== NULL){
                     $dp = $discount->max_price;
@@ -498,7 +500,7 @@ class DiscountCalculator{
                 $discountPrice = $discount->price;
             }else if($discount->percent !== NULL){
                 $dp = $discount->percent * $shippingPrice;
-                $dp = floor($dp / 100) * $dp;
+                $dp = floor($dp / 100);
                 if($dp > $discount->max_price && $discount->max_price !== NULL){
                     $dp = $discount->max_price;
                 }
@@ -613,7 +615,7 @@ class DiscountCalculator{
         }
     }
 
-    public static function calculateSpecialOrderAndShippingDiscount($products, $userId, $provinceId, $cityId, $totalWeight){
+    /*public static function calculateSpecialOrderAndShippingDiscount($products, $userId, $provinceId, $cityId, $totalWeight){
         $time = time();
         $orderDiscountPrice = 0;
         $shippingDiscountPrice = 0;
@@ -811,9 +813,9 @@ class DiscountCalculator{
             }
             return $products;
         }
-    }
+    }*/
 
-    public static function totalDiscount($products, $user, $provinceId){
+    public static function totalDiscount($products, $user, $provinceId, $cityId){
         $time = time();
         $orderDiscountPrice = 0;
         $shippingDiscountPrice = 0;
@@ -838,7 +840,9 @@ class DiscountCalculator{
         }
         $temp = $temp[0];
         $serviceId = $temp->service_id;
-        $totalShippingPrice = ShippingCalculator::shippingPriceCalculator($user, $totalWeight, $serviceId);
+        $totalShippingPrice = DeliveryServiceController::calculateDeliveryPrice($serviceId, $provinceId, 12, $totalWeight, 12, 12);
+        //$totalShippingPrice = ShippingCalculator::shippingPriceCalculator($user, $totalWeight, $serviceId);
+        
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.code IS NULL 
             AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND (D.start_date IS NULL OR D.start_date <= $time) AND (D.finish_date IS NULL OR D.finish_date >= $time)  
             AND (D.expiration_date IS NULL OR D.expiration_date >= $time) AND 

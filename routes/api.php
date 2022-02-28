@@ -233,6 +233,9 @@ Route::get('/get-six-new-product', function(){
 
     Route::post('/product-gtm-information',             [ProductController::class,          'productGoogleTagManagerInformation']);
 
+    /*#####| HOME ROUTES |#####*/
+    Route::get('/home-information',                     [HomeController::class,             'homeInformation']);
+
     Route::get('/testdate', function(){
         echo jdate('y-m-d H:i:s', 1608538986);
     });

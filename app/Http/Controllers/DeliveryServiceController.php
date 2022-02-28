@@ -14,6 +14,153 @@ use stdClass;
 
 class DeliveryServiceController extends Controller
 {
+
+    public static function findDeliveryServices($user, $provinceId, $cityId, $weight, $volume, $maxLength){
+        $deliveryServicesInformation = [];
+        $deliveryServices = DB::select("SELECT * FROM delivery_services WHERE status = 1");
+        foreach($deliveryServices as $service){
+            $deliveryServicePlans = DB::select("SELECT * 
+                FROM delivery_service_plans 
+                WHERE service_id = $service->id AND 
+                (((city_id IS NULL AND province_id = $provinceId) OR (province_id = $provinceId)) OR (city_id = $cityId)) 
+                ORDER BY min_weight ASC");
+            if(count($deliveryServicePlans) == 0){
+                continue;
+            }
+
+            $limitationAllowed = false;
+            $limitation = DB::select("SELECT * FROM delivery_service_limitations WHERE service_id = $service->id LIMIT 1");
+
+            if(count($limitation) == 0){
+                $limitationAllowed = true;
+            }else{
+                $limitation = $limitation[0];
+                if($limitation->max_weight == NULL || $weight <= $limitation->max_weight){
+                    if($limitation->max_volume == NULL || $$volume <= $limitation->max_volume){
+                        if($limitation->max_length == NULL || $maxLength <= $limitation->max_length){
+                            $limitationAllowed = true;
+                        }
+                    }
+                }
+            }
+
+            if($limitationAllowed === false){
+                continue;
+            }
+
+            $userHasLocation = false;
+            $locationAllowed = false;
+
+            if($user->lat !== NULL && $user->lat !== 0 && $user->lat !== ''){
+                if($user->lng !== NULL && $user->lng !== 0 && $user->lng !== ''){
+                    $userHasLocation = true;
+                }
+            }
+
+            if($userHasLocation === true && $service->id == 11){
+                $locationAllowed = DeliveryServiceController::checkLocationForTehranPeyk($user->lat, $user->lng);
+            }else if($userHasLocation === true && $service->id == 12){
+                $locationAllowed = DeliveryServiceController::checkLocationForKarajPeyk($user->lat, $user->lng);
+            }else if($service->id == 14){
+                $locationAllowed = true;
+            }
+
+            if($userHasLocation === true && $locationAllowed === false){
+                continue;
+            }
+
+            $s = new stdClass();
+            $s->id = $service->id;
+            $s->ename = $service->name;
+            $s->fname = $service->fa_name;
+            
+            array_push($deliveryServicesInformation, $s);
+        }
+        return $deliveryServicesInformation;
+    }
+
+    public static function calculateDeliveryServicesPrice($services, $provinceId, $cityId, $weight, $volume, $maxLength){
+        foreach($services as $service){
+            $deliveryServicePlans = DB::select(
+                "SELECT * 
+                FROM delivery_service_plans 
+                WHERE service_id = $service->id AND 
+                (((city_id IS NULL AND province_id = $provinceId) OR (province_id = $provinceId)) OR (city_id = $cityId)) 
+                ORDER BY min_weight ASC" 
+            );
+            
+            if(count($deliveryServicePlans) === 1){
+                $deliveryServicePlans = $deliveryServicePlans[0];
+                if($deliveryServicePlans->max_weight == null){
+                    $service->price = $deliveryServicePlans->price;
+                }
+            }else{
+                $calculated = false;
+                foreach($deliveryServicePlans as $dsp){
+                    if(!$calculated && $weight >= $dsp->min_weight && $weight <= $dsp->max_weight){
+                        $calculated = true;
+                        $service->price = $dsp->price;
+                    }
+                }
+                if(!$calculated){
+                    $lastPricePlan = $deliveryServicePlans[count($deliveryServicePlans) - 1];
+                    $price = $lastPricePlan->price;
+                    for($w1 = $lastPricePlan->max_weight, $w2 = $lastPricePlan->max_weight + 1000; $w1 < $w2 ;$w1 += 1000, $w2 += 1000){
+                        $price += 2500;
+                        if($w1 <= $weight && $weight < $w2){
+                            $service->price = $price;
+                            $calculated = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return $services;
+    }
+
+    public static function calculateDeliveryPrice($serviceId, $provinceId, $cityId, $weight, $volume, $maxLength){
+        $price = -1;
+        
+        $deliveryServicePlans = DB::select(
+            "SELECT * 
+            FROM delivery_service_plans 
+            WHERE service_id = $serviceId AND 
+            (((city_id IS NULL AND province_id = $provinceId) OR (province_id = $provinceId)) OR (city_id = $cityId)) 
+            ORDER BY min_weight ASC" 
+        );
+        
+        if(count($deliveryServicePlans) === 1){
+            $deliveryServicePlans = $deliveryServicePlans[0];
+            if($deliveryServicePlans->max_weight == null){
+                $price = $deliveryServicePlans->price;
+            }
+        }else{
+            $calculated = false;
+            foreach($deliveryServicePlans as $dsp){
+                if(!$calculated && $weight >= $dsp->min_weight && $weight <= $dsp->max_weight){
+                    $calculated = true;
+                    $price = $dsp->price;
+                }
+            }
+            if(!$calculated){
+                echo(count($deliveryServicePlans));
+                $lastPricePlan = $deliveryServicePlans[count($deliveryServicePlans) - 1];
+                for($w1 = $lastPricePlan->max_weight, $w2 = $lastPricePlan->max_weight + 1000; $w1 < $w2 ;$w1 += 1000, $w2 += 1000){
+                    $price += 2500;
+                    if($w1 <= $weight && $weight < $w2){
+                        $price = $price;
+                        $calculated = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $price;
+    }
+        
+
     //@route: /api/user-delivery-options <--> @middleware: ApiAuthenticationMiddleware
     public function getAvailableDeliveryServices(Request $request){
         $userId = $request->userId;
@@ -22,8 +169,28 @@ class DeliveryServiceController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user not found', 'umessage' => 'کاربر یافت نشد'));
             exit();
         }
+
         $user = $user[0];
-        if($user->address === '' || $user->address === NULL){
+        $provinceId = 0;
+        $cityId = 0;
+
+        $result = UserController::getProvinceId($user);
+        if($result->successful){
+            $provinceId = $result->provinceId;
+        }else{
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => $result->message, 'umessage' => $result->umessage));
+            exit();
+        }
+
+        $result = UserController::getCityId($user);
+        if($result->successful){
+            $cityId = $result->cityId;
+        }else{
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => $result->message, 'umessage' => $result->umessage));
+            exit();
+        }
+
+        /*if($user->address === '' || $user->address === NULL){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
             exit();
         }
@@ -51,6 +218,7 @@ class DeliveryServiceController extends Controller
         }
         $cityId = $cityId[0];
         $cityId = $cityId->id;
+        */
         $shoppingCart = DB::select(
             "SELECT products 
             FROM shoppingCarts
@@ -74,9 +242,9 @@ class DeliveryServiceController extends Controller
                         "SELECT P.id, P.prodName_fa, P.prodStatus, P.prodID, P.prodPicture, P.stock AS prodStock, PC.category, 
                         PP.label, PP.count, PP.base_price, PP.price, PP.stock, PP.status, P.prodWeight AS weight, PI.length, PI.width, PI.height
                         FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                        INNER JOIN product_info PI ON P.id = PI.product_id
+                        INNER JOIN product_info PI ON P.id = PI.product_id 
                         WHERE PP.id = $key 
-                        LIMIT 1"
+                        LIMIT 1" 
             );
             if(count($productInfo) == 0){
                 continue;
@@ -117,7 +285,48 @@ class DeliveryServiceController extends Controller
                 }
             }
         }
-        $deliveryServices = DB::select("SELECT * FROM delivery_services WHERE status = 1");
+
+        $deliveryOptions = $this->findDeliveryServices($user, $provinceId, $cityId, $totalWeight, $totalVolume, $maxLength);
+        $deliveryOptions = $this->calculateDeliveryServicesPrice($deliveryOptions, $provinceId, $cityId, $totalWeight, $totalVolume, $maxLength);
+
+        /*foreach($deliveryOptions as $deliveryOption){
+            $deliveryServicePlans = DB::select(
+                "SELECT * 
+                FROM delivery_service_plans 
+                WHERE service_id = $deliveryOption->id AND 
+                (((city_id IS NULL AND province_id = $provinceId) OR (province_id = $provinceId)) OR (city_id = $cityId)) 
+                ORDER BY min_weight ASC" 
+            );
+            
+            if(count($deliveryServicePlans) === 1){
+                $deliveryServicePlans = $deliveryServicePlans[0];
+                if($deliveryServicePlans->max_weight == null){
+                    $deliveryOption->price = $deliveryServicePlans->price;
+                }
+            }else{
+                $calculated = false;
+                foreach($deliveryServicePlans as $dsp){
+                    if(!$calculated && $totalWeight >= $dsp->min_weight && $totalWeight <= $dsp->max_weight){
+                        $calculated = true;
+                        $deliveryOption->price = $dsp->price;
+                    }
+                }
+                if(!$calculated){
+                    $lastPricePlan = $deliveryServicePlans[count($deliveryServicePlans) - 1];
+                    $price = $lastPricePlan->price;
+                    for($w1 = $lastPricePlan->max_weight, $w2 = $lastPricePlan->max_weight + 1000; $w1 < $w2 ;$w1 += 1000, $w2 += 1000){
+                        $price += 2500;
+                        if($w1 <= $totalWeight && $totalWeight < $w2){
+                            $deliveryOption->price = $price;
+                            $calculated = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }*/
+        
+        /*$deliveryServices = DB::select("SELECT * FROM delivery_services WHERE status = 1");
         if(count($deliveryServices) == 0){
             echo json_encode(array('status' => 'failed', 'source' => '', 'message' => 'deliver service not found', 'umessage' => 'درحال حاضر سرویسی برای ارسال بسته فعال نیست'));
             exit();
@@ -128,7 +337,7 @@ class DeliveryServiceController extends Controller
                 FROM delivery_service_plans 
                 WHERE service_id = $service->id AND 
                 (((city_id IS NULL AND province_id = $provinceId) OR (province_id = $provinceId)) OR (city_id = $cityId)) 
-                ORDER BY min_weight ASC");;
+                ORDER BY min_weight ASC");
             if(count($deliveryServicePlans) == 0){
                 continue;
             }
@@ -197,7 +406,7 @@ class DeliveryServiceController extends Controller
                         }
                     }
                 }
-            }
+            }*/
             /*if($service->id === 11){
                 $s->price = 12000;
             }else if($service->id == 12){
@@ -232,13 +441,14 @@ class DeliveryServiceController extends Controller
                     }
                 }
             }*/
-            array_push($deliveryOptions, $s);
-        }
+            //array_push($deliveryOptions, $s);
+        //}
+
         $deliveryOptions = DiscountCalculator::calculateDeliveryDiscount($userId, 1, $totalCartPrice, $productsInformation, $deliveryOptions);
         echo json_encode(array('status' => 'done', 'message' => 'delivery options successfully found', 'options' => $deliveryOptions));
     }
 
-    public function checkLocationForTehranPeyk($lat, $lon){
+    public static function checkLocationForTehranPeyk($lat, $lon){
         $locations = [[35.7398594,51.6230822],[35.7401032,51.6225243],[35.7463729,51.598835],[35.7526422,51.5966034],[35.7573786,51.5849304],
             [35.7664328,51.5873337],[35.78231,51.5366936],[35.7919531,51.530664],[35.7933107,51.5385818],[35.8027784,51.537466],[35.8164908,51.5341187],
             [35.8196227,51.5087128],[35.8163516,51.5009022],[35.8226849,51.4917183],[35.8193443,51.484766],[35.8276955,51.4683723],[35.8269996,51.4637375],
@@ -273,7 +483,7 @@ class DeliveryServiceController extends Controller
             return $inside;
     }
 
-    public function checkLocationForKarajPeyk ($lat, $lon){
+    public static function checkLocationForKarajPeyk ($lat, $lon){
         $locations = [[35.5885389,51.4569998],[35.5895161,51.4593601],[35.5868986,51.4613771],[35.5850838,51.4624929],[35.5692721,51.4722347],
         [35.5602304,51.4767838],[35.5586943,51.470089],[35.5516416,51.4357567],[35.5337629,51.4357567],[35.495897,51.4033127],[35.4931018,51.3864899],
         [35.4992512,51.3514709],[35.506518,51.3274384],[35.5126664,51.2388611],[35.4897474,51.2299347],[35.4819199,51.2072754],[35.4964561,51.2024689],
@@ -407,10 +617,10 @@ class DeliveryServiceController extends Controller
                 SET service_id = $serviceId, work_time = $workTime, work_time_id = $workTimeId, expiration_date = $expirationDate
                 WHERE id = $activeTemporaryInformation->id"
             );
-            if(!$updateResult){
-                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'error while updating the previous values', 'umessage' => 'خطا هنگامی ویرایش اطلاعات جدید'));
-                exit();
-            }
+            //if(!$updateResult){
+            //    echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'error while updating the previous values', 'umessage' => 'خطا هنگامی ویرایش اطلاعات جدید'));
+            //    exit();
+            //}
             echo json_encode(array('status' => 'done', 'message' => 'current information successfully updated'));
         }
     } 

@@ -180,30 +180,37 @@ class OrderController extends Controller
             LIMIT 1"
         );
         $user = $user[0];
-        if($user->address === '' || $user->address === NULL){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+
+        $provinceId = 0;
+        $cityId = 0;
+        $userAddress = '';
+
+        $result = UserController::getProvinceId($user);
+        if($result->successful){
+            $provinceId = $result->provinceId;
+        }else{
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => $result->message, 'umessage' => $result->umessage));
             exit();
         }
-        $addressPack = json_decode($user->address)->addressPack;
-        if($addressPack->province == -1){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
+
+        $result = UserController::getCityId($user);
+        if($result->successful){
+            $cityId = $result->cityId;
+        }else{
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => $result->message, 'umessage' => $result->umessage));
             exit();
         }
-        $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$addressPack->province'");
-        if(count($provinceId) == 0){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'province could not be found', 'umessage' => 'استان کاربر یافت نشد'));
+
+        $result = UserController::getUserAddress($user);
+        if($result->successful){
+            $userAddress = $result->address;
+        }else{
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => $result->message, 'umessage' => $result->umessage));
             exit();
         }
-        $provinceId = $provinceId[0];
-        $provinceId = $provinceId->id;
-        $cityId = DB::select("SELECT id FROM cities WHERE city = '$addressPack->city'");
-        if(count($cityId) == 0){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'city could not be found', 'umessage' => 'شهر کاربر یافت نشد'));
-            return NULL;
-        }
-        $cityId = $cityId[0];
-        $cityId = $cityId->id;
+
         $totalWeight = 0;
+
         $cart = DB::select(
             "SELECT id, products 
             FROM shoppingCarts 
@@ -254,7 +261,7 @@ class OrderController extends Controller
                 }
             }
         }
-        $allDiscounts = DiscountCalculator::totalDiscount($cartProducts, $user, $provinceId);
+        $allDiscounts = DiscountCalculator::totalDiscount($cartProducts, $user, $provinceId, $cityId);
 
         $allDiscountIds = $allDiscounts->discountIds;
 
@@ -332,7 +339,7 @@ class OrderController extends Controller
             $userLat = 'NULL';
         }
         if($userLng == null){
-            $userLng = 'NULL';
+            $userLng = 'NULL';  
         }
         
         /***| insert order information into 'order_info' table |***/
@@ -348,7 +355,7 @@ class OrderController extends Controller
                 lat, lng) 
             VALUES ('$user->fname', '$user->lname', 
                 '$cityId', '$user->postalCode', 
-                '$addressPack->address', '$user->mobile', 
+                '$userAddress', '$user->mobile', 
                 '$user->telephone', 0, 
                 '', 
                 $deliveryTemporaryInformation->work_time, 0,  $totalWeight, 0, 0, 'cancel', '', '', 0, 

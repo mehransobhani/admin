@@ -228,13 +228,14 @@ Route::get('/sendMessage', function(){
             echo 'could not send message';
         }
         */
+        /*
         $feedbackApi = new \Kavenegar\KavenegarApi( "7358684B76496D5079754170615766594F534A31724130495344335152326D4F" );
         $sender = "10000055373520";
         $feedBackMessage = "سلام، لطفا با پاسخ به سوالات لینک زیر به افزایش کیفیت آموزش‌ها کمک کنید." . "\n";
         $feedBackMessage = $feedBackMessage . "ممنون که هنری رو برای یادگیری انتخاب کردین." . "\n";
         $feedBackMessage = $feedBackMessage . "honari.com/a/cls_s";
         $result = $feedbackApi->Send($sender,$receptor,$feedBackMessage, $sendDate);
-
+        */
 });
 
 Route::get('/helloworld', function(){
@@ -277,3 +278,21 @@ Route::get('/helloworld', function(){
     var_dump($result);
 
 });
+
+Route::get('/test-curl', function(){
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+        curl_setopt($ch, CURLOPT_URL, 'https://academy.honari.com/api/shop/new-four-courses');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        //curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        //'Content-Type: application/json',
+        //));
+        $response = curl_exec ($ch);
+        curl_close ($ch);
+        if($response !== NULL){
+            $response = json_decode($response);   
+        }
+        if($response->status === 'done' && $response->found == true){
+            $response = $response->courses;
+        }
+    });

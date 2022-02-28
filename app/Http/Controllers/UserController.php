@@ -10,10 +10,140 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
+use Exception;
 use stdClass;
 
 class UserController extends Controller
 {
+    public static function getProvinceId($user){
+        $responseObject = new stdClass();
+        if($user->address === '' || $user->address === NULL){
+            $responseObject->successful = false;
+            $responseObject->message = "user does not have address";
+            $responseObject->umessage = "کاربر فاقد آدرس میباشد";
+            $responseObject->provinceId = null;
+            return $responseObject;
+        }
+
+        try{
+            $addressPack = json_decode($user->address)->addressPack;
+        }catch(Exception $e){
+            $responseObject->successful = false;
+            $responseObject->message = "user address has wrong format";
+            $responseObject->umessage = "خطا هنگام خواندن آدرس کابر";
+            $responseObject->provinceId = null;
+            return $responseObject;
+        }
+
+        if($addressPack->province == -1){
+            $responseObject->successful = false;
+            $responseObject->message = "user does not have address";
+            $responseObject->umessage = "کاربر فاقد آدرس میباشد";
+            $responseObject->provinceId = null;
+            return $responseObject;
+        }
+
+        $provinceId = DB::select("SELECT id FROM provinces WHERE name = '$addressPack->province'");
+        if(count($provinceId) == 0){
+            $responseObject->successful = false;
+            $responseObject->message = "province could not be found";
+            $responseObject->umessage = "استان کاربر یافت نشد";
+            $responseObject->provinceId = null;
+            return $responseObject;
+        }
+
+        $provinceId = $provinceId[0];
+        $provinceId = $provinceId->id;
+
+        $responseObject->successful = true;
+        $responseObject->message = "province id successfully found";
+        $responseObject->umessage = "کد استان کاربر با موفقیت یافت شد";
+        $responseObject->provinceId = $provinceId;
+        return $responseObject;
+
+        $cityId = DB::select("SELECT id FROM cities WHERE city = '$addressPack->city'");
+        if(count($cityId) == 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'city could not be found', 'umessage' => 'شهر کاربر یافت نشد'));
+            return NULL;
+        }
+        $cityId = $cityId[0];
+        $cityId = $cityId->id;
+    }
+
+    public static function getCityId($user){
+        $responseObject = new stdClass();
+        if($user->address === '' || $user->address === NULL){
+            $responseObject->successful = false;
+            $responseObject->message = "user does not have address";
+            $responseObject->umessage = "کاربر فاقد آدرس میباشد";
+            $responseObject->cityId = null;
+            return $responseObject;
+        }
+
+        try{
+            $addressPack = json_decode($user->address)->addressPack;
+        }catch(Exception $e){
+            $responseObject->successful = false;
+            $responseObject->message = "user address has wrong format";
+            $responseObject->umessage = "خطا هنگام خواندن آدرس کابر";
+            $responseObject->cityId = null;
+            return $responseObject;
+        }
+
+        if($addressPack->province == -1){
+            $responseObject->successful = false;
+            $responseObject->message = "user does not have address";
+            $responseObject->umessage = "کاربر فاقد آدرس میباشد";
+            $responseObject->cityId = null;
+            return $responseObject;
+        }
+        
+        $cityId = DB::select("SELECT id FROM cities WHERE city = '$addressPack->city'");
+        if(count($cityId) == 0){
+            $responseObject->successful = false;
+            $responseObject->message = "user city could not be found";
+            $responseObject->umessage = "شهر کاربر یافت نشد";
+            $responseObject->cityId = null;
+            return $responseObject;
+        }
+        
+        $cityId = $cityId[0];
+        $cityId = $cityId->id;
+
+        $responseObject->successful = true;
+        $responseObject->message = "city id successfully found";
+        $responseObject->umessage = "کد شهر کاربر با موفقیت یافت شد";
+        $responseObject->cityId = $cityId;
+        return $responseObject;
+    }
+
+    public static function getUserAddress($user){
+        $responseObject = new stdClass();
+        if($user->address === '' || $user->address === NULL){
+            $responseObject->successful = false;
+            $responseObject->message = "user does not have address";
+            $responseObject->umessage = "کاربر فاقد آدرس میباشد";
+            $responseObject->cityId = null;
+            return $responseObject;
+        }
+
+        try{
+            $addressPack = json_decode($user->address)->addressPack;
+        }catch(Exception $e){
+            $responseObject->successful = false;
+            $responseObject->message = "user address has wrong format";
+            $responseObject->umessage = "خطا هنگام خواندن آدرس کابر";
+            $responseObject->cityId = null;
+            return $responseObject;
+        }
+
+        $responseObject->successful = true;
+        $responseObject->message = "user address successfully found";
+        $responseObject->umessage = "آدرس کاربر با موفقیت دریافت شد";
+        $responseObject->address = $addressPack->address;
+        return $responseObject;
+    }
+
     /*### without api route ###*/
     public function checkUser(Request $request){
         if(isset($request->username)){

@@ -825,9 +825,8 @@ class CartController extends Controller
                 $productObject->productWeight = $product->prodWeight;
                 array_push($cartProducts, $productObject);
             }
-            $addressPack = $user->address;
         }
-        if($user->address === '' || $user->address === NULL){
+        /*if($user->address === '' || $user->address === NULL){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not have address', 'umessage' => 'کاربر فاقد آدرس میباشد'));
             exit();
         }
@@ -849,8 +848,28 @@ class CartController extends Controller
             exit();
         }
         $cityId = $cityId[0];
-        $cityId = $cityId->id;
-        $info = DiscountCalculator::totalDiscount($cartProducts, $user, $provinceId);
+        $cityId = $cityId->id;*/
+
+        $provinceId = 0;
+        $cityId = 0;
+
+        $result = UserController::getProvinceId($user);
+        if($result->successful){
+            $provinceId = $result->provinceId;
+        }else{
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => $result->message, 'umessage' => $result->umessage));
+            exit();
+        }
+
+        $result = UserController::getCityId($user);
+        if($result->successful){
+            $cityId = $result->cityId;
+        }else{
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => $result->message, 'umessage' => $result->umessage));
+            exit();
+        }
+
+        $info = DiscountCalculator::totalDiscount($cartProducts, $user, $provinceId, $cityId);
         $info->userStock = $user->user_stock;
         echo json_encode(array('status' => 'done', 'message' => 'discounts successfully found', 'information' => $info));
     }

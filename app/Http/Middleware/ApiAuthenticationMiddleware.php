@@ -50,7 +50,7 @@ class ApiAuthenticationMiddleware
             }
             $userObject = json_decode($server_output);
 		    if(!is_object($userObject)){
-                echo json_encode(array('status' => 'failed', 'source' => 'middleware', 'reason' => 'authResponse', 'message' => 'auth server response error'));
+                echo json_encode(array('status' => 'failed', 'source' => 'middleware', 'reason' => 'authResponse', 'message' => 'auth server response error', 'token' => $token));
                 exit();
             }
             $userObject = $userObject->data;

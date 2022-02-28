@@ -339,24 +339,6 @@ class ProductController extends Controller
         }
         $page = $request->page;
 
-        /*
-            P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, C.id AS category, C.name AS categoryName
-        
-            $productObject->productId = $product->id;
-            $productObject->productPackId = $product->packId;
-            $productObject->productName = $product->prodName_fa;
-            $productObject->prodID = $product->prodID;
-            $productObject->categoryId = $product->category;
-            $productObject->categoryName = $product->categoryName;
-            $productObject->productPrice = $product->price;
-            $productObject->productUrl = $product->url;
-            $productObject->productBasePrice = $product->base_price;
-            $productObject->maxCount = $product->packStock;
-            $productObject->productUnitCount = $product->count;
-            $productObject->productUnitName = $product->prodUnite;
-            $productObject->productLabel = $product->label;
-    */
-
         $products = DB::select(
             "(  SELECT 1 AS sort, P.id AS productId, PP.id AS productPackId, P.prodName_fa AS productName, P.prodID, P.url AS productUrl, P.prodUnite AS productUnitName, PP.stock AS maxCount, PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS productLabel, PP.count AS productUnitCount, P.prodDate,  C.id AS categoryId, C.name AS categoryName  
                 FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id
