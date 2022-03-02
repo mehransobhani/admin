@@ -840,7 +840,7 @@ class DiscountCalculator{
         }
         $temp = $temp[0];
         $serviceId = $temp->service_id;
-        $totalShippingPrice = DeliveryServiceController::calculateDeliveryPrice($serviceId, $provinceId, 12, $totalWeight, 12, 12);
+        $totalShippingPrice = DeliveryServiceController::calculateDeliveryPrice($serviceId, $provinceId, $cityId, $totalWeight, 12, 12);
         //$totalShippingPrice = ShippingCalculator::shippingPriceCalculator($user, $totalWeight, $serviceId);
         
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.code IS NULL 

@@ -28,7 +28,7 @@ class BannerController extends Controller
             "SELECT img AS image, anchor AS url, description AS title
             FROM banners 
             WHERE cat_id = $categoryId AND (start_date = 0 OR start_date <= $time) AND (end_date = 0 OR end_date >= $time) AND isActive = 1 AND isBanner = 6 
-            ORDER BY _order ASC"
+            ORDER BY _order ASC "
         );
         echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'banners successfully found', 'banners' => $banners));
         /*if(isset($request->id)){

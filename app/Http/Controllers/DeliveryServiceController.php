@@ -121,7 +121,6 @@ class DeliveryServiceController extends Controller
 
     public static function calculateDeliveryPrice($serviceId, $provinceId, $cityId, $weight, $volume, $maxLength){
         $price = -1;
-        
         $deliveryServicePlans = DB::select(
             "SELECT * 
             FROM delivery_service_plans 
@@ -131,11 +130,11 @@ class DeliveryServiceController extends Controller
         );
         
         if(count($deliveryServicePlans) === 1){
-            $deliveryServicePlans = $deliveryServicePlans[0];
-            if($deliveryServicePlans->max_weight == null){
-                $price = $deliveryServicePlans->price;
+            $dsps = $deliveryServicePlans[0];
+            if($dsps->max_weight == null){
+                $price = $dsps->price;
             }
-        }else{
+        }else {
             $calculated = false;
             foreach($deliveryServicePlans as $dsp){
                 if(!$calculated && $weight >= $dsp->min_weight && $weight <= $dsp->max_weight){
@@ -144,7 +143,6 @@ class DeliveryServiceController extends Controller
                 }
             }
             if(!$calculated){
-                echo(count($deliveryServicePlans));
                 $lastPricePlan = $deliveryServicePlans[count($deliveryServicePlans) - 1];
                 for($w1 = $lastPricePlan->max_weight, $w2 = $lastPricePlan->max_weight + 1000; $w1 < $w2 ;$w1 += 1000, $w2 += 1000){
                     $price += 2500;

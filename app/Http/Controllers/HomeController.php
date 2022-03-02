@@ -292,7 +292,8 @@ class HomeController extends Controller
         $carousel = [];
         $courses = [];
         $products = [];
-        $populars=[];
+        $populars = [];
+        $topBanners = [];
 
         /***| FINDING COURSES |***/
         $ch = curl_init();
@@ -354,6 +355,18 @@ class HomeController extends Controller
         if(count($sliders) !== 0){
             $carousel = $sliders;
         }
+
+        /***| THE OTHER BANNERS |***/
+        $otherBanners = DB::select(
+            " SELECT img, anchor 
+            FROM banners 
+            WHERE isBanner = 9 AND isActive = 1 AND ((`start_date` = 0 AND end_date = 0) OR (`start_date` >= $date AND end_date <= $date)) 
+            ORDER BY _order ASC, `date` DESC 
+            LIMIT 2 "
+        );
+        if(count($otherBanners) !== 0){
+            $topBanners = $otherBanners;
+        }
         
         /***| POPULAR CATEGORIES |***/
         $pcs = DB::select(
@@ -367,7 +380,7 @@ class HomeController extends Controller
             $populars = $pcs;
         }
 
-        echo json_encode(array('status' => 'done', 'courses' => $courses, 'products' => $products, 'carousel' => $carousel, 'populars' => $populars));
+        echo json_encode(array('status' => 'done', 'courses' => $courses, 'products' => $products, 'carousel' => $carousel, 'topBanners' => $topBanners, 'populars' => $populars));
     }
 
     /**
