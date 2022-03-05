@@ -56,10 +56,10 @@ class HomeController extends Controller
                 /*** PRODUCT INFORMATION ***/
                 $productObject = new stdClass();
                 $pi = DB::select(
-                    "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
+                    "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
                     FROM products P
-                    INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                    WHERE P.id = $product->id AND PP.status = 1");
+                    INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
+                    WHERE P.id = $product->id AND PP.status = 1 ");
                 if(count($pi) !== 0){
                     $pi = $pi[0];
                     $productStatus = -1;
@@ -88,6 +88,48 @@ class HomeController extends Controller
                     }
 
                     $productObject = DiscountCalculator::calculateProductDiscount($productObject);
+                }else{
+                    $pi = DB::select(
+                        "SELECT P.id, 0 AS packId, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, 0 AS productStock, 0 AS packStock, 0 AS `status`, 0 AS price, 0 AS base_price, '' AS label, 0 AS `count`, P.aparat, PC.category 
+                        FROM products P
+                        INNER JOIN product_category PC ON P.id = PC.product_id 
+                        WHERE P.id = $product->id ");
+                        /*  
+                            $pi = DB::select(
+                            "SELECT P.id, 0 AS packId, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, 0 AS productStock, 0 AS packStock, 0 AS `status`, 0 AS price, 0 AS base_price, '' AS label, 0 AS `count`, P.aparat, PC.category 
+                            FROM products P
+                            INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
+                            WHERE P.id = $product->id AND PP.status = 1 ");
+                        */
+                    if(count($pi) !== 0){
+                        $pi = $pi[0];
+                        $productStatus = -1;
+                        if($pi->prodStatus == 1 && $pi->status == 1 && $pi->packStock >0 && $pi->productStock >0 && ($pi->count * $pi->packStock <= $pi->productStock) ){
+                            $productStatus = 1;
+                        }
+                        $productObject->productId = $product->id;
+                        $productObject->productPackId = $pi->packId;
+                        $productObject->productName = $pi->prodName_fa;
+                        $productObject->prodID = $pi->prodID;
+                        $productObject->categoryId = $pi->category;
+                        $productObject->productPrice = $pi->price;
+                        $productObject->productUrl = $pi->url;
+                        $productObject->productBasePrice = $pi->base_price;
+                        $productObject->maxCount = $pi->packStock; // <-- OK!
+                        $productObject->productUnitCount = $pi->count;
+                        $productObject->productUnitName = $pi->prodUnite;
+                        $productObject->productLabel = $pi->label;
+                        $productObject->aparat = $pi->aparat;
+                        $productObject->productOtherImages = $pi->prodOimages;
+                        $productObject->productStatus = $productStatus;
+                        
+                        if($productStatus === -1){
+                            $productObject->productPrice = 0;
+                            $productObject->productBasePrice = 0;
+                        }
+    
+                        $productObject = DiscountCalculator::calculateProductDiscount($productObject);
+                    }
                 }
 
                 /*** FINDING PRODUCT INFORMATION ***/
@@ -117,15 +159,16 @@ class HomeController extends Controller
                         "SELECT P.id, PP.id AS packId, PC.category, C.name AS `name`, P.prodName_fa, P.url, P.prodID, PP.price 
                         FROM product_category PC 
                             INNER JOIN products P ON PC.product_id = P.id 
-                            INNER JOIN product_pack PP ON PP.product_id = P.id 
+                            INNER JOIN products_location PL ON PL.product_id = P.id 
+                            INNER JOIN product_pack PP ON PP.id = PL.pack_id 
                             INNER JOIN category C ON C.id = PC.category 
                         WHERE PC.category = $productCategory->category AND 
                             P.id <> $product->id AND 
                             P.prodStatus = 1 AND 
                             PP.status = 1 AND 
-                            P.stock > 0 AND 
-                            PP.stock > 0 AND 
-                            (PP.count * PP.stock <= P.stock) 
+                            PL.stock > 0 AND 
+                            PL.pack_stock > 0 AND 
+                            (PP.count * PL.pack_stock <= PL.stock) 
                         ORDER BY prodDate DESC 
                         LIMIT 6");
                     if(count($sproducts) !== 0){
@@ -222,14 +265,15 @@ class HomeController extends Controller
                     $count = 0;
                     $products = [];
 
-                    $having = " AND P.prodStatus = 1 AND P.stock > 0 AND  PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock)";
-                    $finished = " AND P.prodStatus = 1 AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
+                    $having = " AND P.prodStatus = 1 AND PL.stock > 0 AND  PL.pack_stock > 0 AND PP.status = 1 AND (PP.count * PL.pack_stock <= PL.stock)";
+                    $finished = " AND P.prodStatus = 1 AND ((P.id NOT IN (SELECT DISTINCT PLL.product_id FROM products_location PLL ) OR (SELECT PLLL.id FROM products_location PLLL WHERE PLLL.product_id = P.id AND PLLL.pack_stock <> 0) IS NULL)) "; //"AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
 
-                    $queryHaving = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P RIGHT JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                    $queryHaving = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                         WHERE C.id = $category->id OR C.parentID = $category->id) AND PP.status = 1 " . $having . " ORDER BY P.id DESC " ;
-                    $queryFinished = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, -1 AS price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
-                        WHERE C.id = $category->id OR C.parentID = $category->id) AND PP.status = 1 " . $finished . " ORDER BY P.id DESC ";
                     
+                    $queryFinished = "SELECT P.id, 0 packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, 0 AS productStock, 0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 0 AS `count`, PPC.category FROM products P INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                        WHERE C.id = $category->id OR C.parentID = $category->id) " . $finished . " ORDER BY P.id DESC ";
+
                     $havingProducts = DB::select($queryHaving);
                     $finishedProducts = DB::select($queryFinished);
                     
@@ -316,10 +360,11 @@ class HomeController extends Controller
         $ps = DB::select(
             "SELECT P.id AS productId, PP.id AS productPackId, P.prodName_fa AS productName, P.prodID, P.url AS productUrl, P.prodUnite AS productUnitName, PP.stock AS maxCount, PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS productLabel, PP.count AS productUnitCount, P.prodDate,  C.id AS categoryId, C.name AS categoryName  
             FROM products P 
-            INNER JOIN product_pack PP ON P.id = PP.product_id 
+            INNER JOIN products_location PL ON PL.product_id = P.id 
+            INNER JOIN product_pack PP ON PL.pack_id = PP.id 
             INNER JOIN product_category PC ON P.id = PC.product_id 
             INNER JOIN category C ON PC.category = C.id 
-            WHERE P.prodStatus = 1 AND P.stock > 0 AND PP.status = 1 AND PP.stock > 0 AND (PP.count * PP.stock) <= P.stock 
+            WHERE P.prodStatus = 1 AND PL.stock > 0 AND PP.status = 1 AND PL.pack_stock > 0 AND (PP.count * PL.pack_stock) <= PL.stock 
             ORDER BY prodDate DESC, productId DESC 
             LIMIT 6"
         );

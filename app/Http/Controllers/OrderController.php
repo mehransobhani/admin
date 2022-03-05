@@ -144,7 +144,7 @@ class OrderController extends Controller
         $orders = DB::select(
             "SELECT O.id, O.orderReferenceID, O.date, OI.address, OI.postal_code, OI.fname, OI.lname, O.total_items, O.shipping_cost, O.stat 
             FROM orders O INNER JOIN order_info OI ON O.info_id = OI.id 
-            WHERE O.user_id = $user->id AND O.stat <> 6
+            WHERE O.user_id = $user->id AND O.stat NOT IN (6, 7) 
             ORDER BY O.date DESC");
         if(count($orders) !== 0){
             $responseArray = array();
@@ -230,8 +230,8 @@ class OrderController extends Controller
             $productInfo = DB::select(
                 "SELECT P.id, PP.id AS packId, P.buyPrice, P.prodName_fa, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
-                INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PP.status = 1 AND P.prodStatus = 1 AND PP.id = $key AND P.stock > 0 AND PP.stock > 0 AND (P.stock >= PP.stock * PP.count)"
+                INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
+                WHERE PL.stock > 0 AND PL.pack_stock > 0 AND (PL.pack_stock * PP.count <= PL.stock) AND PP.status = 1 AND P.prodStatus = 1 AND PL.pack_id = $key AND P.stock > 0 AND PP.stock > 0 AND (P.stock >= PP.stock * PP.count)"
             );
             if(count($productInfo) !== 0){
                 $productInfo = $productInfo[0];
@@ -343,6 +343,15 @@ class OrderController extends Controller
         }
         
         /***| insert order information into 'order_info' table |***/
+        $lat = ' NULL ';
+        $lng = ' NULL ';
+        if($user->lat != null){
+            $lat = $user->lat;
+        }
+        if($user->lng != null){
+            $lng = $user->lng;
+        }
+
         DB::insert(
             "INSERT INTO order_info
             (fname, lname, 
@@ -359,7 +368,7 @@ class OrderController extends Controller
                 '$user->telephone', 0, 
                 '', 
                 $deliveryTemporaryInformation->work_time, 0,  $totalWeight, 0, 0, 'cancel', '', '', 0, 
-                $deliveryTemporaryInformation->work_time_id, $user->lat, $user->lng )"
+                $deliveryTemporaryInformation->work_time_id, $lat, $lng )"
         );
         
         $infoId = DB::select("SELECT id FROM order_info WHERE mobile = $user->mobile ORDER BY id DESC LIMIT 1");
@@ -417,7 +426,7 @@ class OrderController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not add order', 'umessage' => 'خطا در ذخیره سفارش'));
             exit();
         }
-        $orderId = DB::select(
+        $orderId = DB::select( 
             "SELECT id 
             FROM orders
             WHERE user_id = $user->id
@@ -526,6 +535,16 @@ class OrderController extends Controller
                     $orderId, 
                     "NULL"
                 );
+                $this->manipulateProductLocationAndLog(
+                    $orderItem->product_id, 
+                    $orderItem->pack_id, 
+                    $orderItem->count, 
+                    $orderItem->pack_count, 
+                    $userId, 
+                    1, 
+                    NULL, 
+                    5 
+                );
             }
 
             $this->updateOrderStatus($orderId, 1);
@@ -607,6 +626,36 @@ class OrderController extends Controller
             SET stock = stock + $changedStock 
             WHERE id = $packId"
         );
+    }
+
+    public function manipulateProductLocationAndLog($productId, $packId, $count, $packCount, $userId, $sourceAnbarId, $destinationAnbarId, $kind){
+        
+        $fromAnbarId = $sourceAnbarId !== null ? $sourceAnbarId : ' NULL ';
+        $toAnbarId = $destinationAnbarId !== null ? $destinationAnbarId : ' NULL ';
+        
+        $time = time();
+        $stock = $count * $packCount;
+        DB::insert(
+            "INSERT INTO products_location_log (
+                product_id, pack_id, stock, pack_stock, `time`, from_anbar, to_anbar, `user_id`, kind 
+            ) VALUES (
+                $productId, $packId, $stock, $count, $time, $fromAnbarId, $toAnbarId, $userId, $kind
+            )"
+        );
+
+        if($kind === 5){
+            DB::update(
+                "UPDATE products_location 
+                SET stock = stock - $stock, pack_stock = pack_stock - $count 
+                WHERE product_id = $productId AND pack_id = $packId "
+            );
+        }else if($kind === 6){
+            DB::update(
+                "UPDATE products_location 
+                SET stock = stock + $stock, pack_stock = pack_stock + $count 
+                WHERE product_id = $productId AND pack_id = $packId "
+            );
+        }
     }
 
     public function insertProductReturns($productId, $pack, $orderId, $count, $full, $desc, $username, $putUser, $putDate){

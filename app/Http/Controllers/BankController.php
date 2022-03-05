@@ -172,6 +172,17 @@ class BankController extends Controller
                 $orderId, 
                 "NULL"
             );
+            
+            $orderController->manipulateProductLocationAndLog(
+                $orderItem->product_id,
+                $orderItem->pack_id,
+                $orderItem->count, 
+                $orderItem->pack_count,
+                $userId,
+                1,
+                NULL, 
+                5
+            );
         }
         $orderController->updateOrderStatus($orderId, 1);
         if($order->used_stock_user !== 0){

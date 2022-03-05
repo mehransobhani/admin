@@ -63,6 +63,39 @@ class ArtController extends Controller
         $result->banners = $banners;
         $result->topSixProducts = $sixNewProducts;
 
+        $courses = [];
+        $artCourses = DB::select(
+            "SELECT course_id
+            FROM art_courses 
+            WHERE art_id = $result->art_id 
+            ORDER BY date DESC 
+            LIMIT 2 "
+        );
+
+        foreach($artCourses as $ac){
+            array_push($courses, $ac->course_id);
+        }
+
+        /***| THIS PART WILL BE TESTED |***/
+
+        /*$ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,"https://academy.honari.com/api/shop/courses-information");
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, "courseIds" . json_encode($courses));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $server_output = curl_exec($ch);
+        curl_close ($ch);
+        
+        if($server_output != null){
+            $server_output = json_decode($server_output);
+            if($server_output->status === 'done'){
+                $courses = $server_output->courses;
+            }
+        }
+
+        $result->courses = $courses;
+        */
+
         echo json_encode(array('status' => 'done', 'message' => 'results sucessfully found', 'result' => $result));
     }
 }
