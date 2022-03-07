@@ -34,9 +34,9 @@ class ArtController extends Controller
             ORDER BY _order ASC "
         );
         $topSixProducts = DB::select(
-            "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
-            FROM product_category PC INNER JOIN products P ON P.id = PC.product_id INNER JOIN product_pack PP ON P.id = PP.product_id 
-            where PC.category IN (SELECT id FROM category C WHERE C.parentId = $result->categoryId OR C.id = $result->categoryId) AND P.prodStatus = 1 AND PP.status = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.stock * PP.count <= P.stock) 
+            "SELECT P.id, PL.pack_id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+            FROM product_category PC INNER JOIN products P ON P.id = PC.product_id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id 
+            where PC.category IN (SELECT id FROM category C WHERE C.parentId = $result->categoryId OR C.id = $result->categoryId) AND P.prodStatus = 1 AND PP.status = 1 AND PL.stock > 0 AND PL.pack_stock > 0 
             ORDER BY P.prodDate DESC 
             LIMIT 6"
         );
@@ -78,15 +78,17 @@ class ArtController extends Controller
 
         /***| THIS PART WILL BE TESTED |***/
 
-        /*$ch = curl_init();
+        $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL,"https://academy.honari.com/api/shop/courses-information");
         curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, "courseIds" . json_encode($courses));
+        //curl_setopt($ch, CURLOPT_POSTFIELDS, "courseIds" , json_encode($courses));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, ['courseIds' => json_encode($courses)]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $server_output = curl_exec($ch);
         curl_close ($ch);
         
-        if($server_output != null){
+        if($server_output != null && $server_output != 'NULL'){
+            
             $server_output = json_decode($server_output);
             if($server_output->status === 'done'){
                 $courses = $server_output->courses;
@@ -94,8 +96,8 @@ class ArtController extends Controller
         }
 
         $result->courses = $courses;
-        */
-
+        
+        
         echo json_encode(array('status' => 'done', 'message' => 'results sucessfully found', 'result' => $result));
     }
 }

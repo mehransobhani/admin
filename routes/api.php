@@ -138,7 +138,7 @@ Route::get('/get-six-new-product', function(){
 });
 
     Route::post('/route-info', [HomeController::class, 'routeInfo']);
-
+ 
 
     /*##### Product routes #####*/
     Route::get('six-new-products',                      [ProductController::class, 'sixNewProducts']);;
