@@ -55,7 +55,7 @@ class DiscountCalculator{
                                 $reducedPrice += $rp;
                                 $product->rp = $reducedPrice;
                             }else{
-                                $productStock = DB::select("SELECT stock FROM product_pack WHERE product_id = $product->productId AND status = 1 ORDER BY id DESC LIMIT 1");
+                                $productStock = DB::select("SELECT pack_stock AS stock FROM products_location WHERE product_id = $product->productId ORDER BY id DESC limit 1 ");
                                 if(count($productStock) !== 0){
                                     $productStock = $productStock[0];
                                     if($productStock->stock > $discountDependencyInformation->final_stock){
@@ -142,7 +142,7 @@ class DiscountCalculator{
                                         }
                                         $rps[$i] += $rp;
                                     }else{
-                                        $productStock = DB::select("SELECT stock FROM product_pack WHERE product_id = $product->productId AND status = 1 ORDER BY id DESC LIMIT 1");
+                                        $productStock = DB::select("SELECT product_stock AS stock FROM products_location WHERE product_id = $product->productId ORDER BY id DESC LIMIT 1 ");
                                         if(count($productStock) !== 0){
                                             $productStock = $productStock[0];
                                             if($discountDependencyInformation->final_stock < $productStock->stock){
@@ -167,7 +167,6 @@ class DiscountCalculator{
             foreach($products as $product){
                 if($rps[$i] !== 0){
                     if($rps[$i] < $products[$i]->productPrice){
-                        //$products[$i]->discountedPrice = $products[$i]->productPrice - (100 * (integer)(($rps[$i]) / 100));
                         $products[$i]->discountedPrice = $products[$i]->productPrice - ($rps[$i] - $rps[$i]%50);
                         $products[$i]->discountPercent = (integer)(($rps[$i]/$products[$i]->productPrice) * 100);
                     }else{
@@ -519,6 +518,7 @@ class DiscountCalculator{
         }
     }
 
+    /*
     public static function calculateSpecialProductsDiscount($products, $userId, $provinceId){
         $time = time();
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type_id IN (1. 2) AND D.code IS NULL 
@@ -614,6 +614,7 @@ class DiscountCalculator{
             return $products;
         }
     }
+    */
 
     /*public static function calculateSpecialOrderAndShippingDiscount($products, $userId, $provinceId, $cityId, $totalWeight){
         $time = time();
@@ -1049,7 +1050,7 @@ class DiscountCalculator{
                                             array_push($discountIds, $discount->id);
                                         }
                                     }else{
-                                        $productStock = DB::select("SELECT stock FROM product_pack WHERE product_id = $product->productId AND `status` ORDER BY id DESC LIMIT 1 ");
+                                        $productStock = DB::select("SELECT pack_stock AS stock FROM products_location WHERE product_id = $product->productId ORDER BY id DESC LIMIT 1 ");
                                         if(count($productStock) !== 0){
                                             $productStock = $productStock[0];
                                             if($discountDependencyInformation->final_stock < $productStock->stock){

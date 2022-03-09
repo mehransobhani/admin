@@ -54,11 +54,51 @@ class ApiAuthenticationMiddleware
                 exit();
             }
             $userObject = $userObject->data;
-            //$user = User::where('ex_user_id', $userObject->data->id)->orderBy('id', 'DESC')->first();
             $user = DB::select("SELECT id from users WHERE ex_user_id = $userObject->id LIMIT 1");
             if(count($user) == 0){
-                echo json_encode(array('status' => 'failed', 'source' => 'middleware', 'reason' => 'missingUser', 'message' => 'user does not exist yet'));
-                exit();
+                
+                $date = time();
+                DB::insert(
+                    "INSERT INTO users (
+                        username, userlevel, 
+                        email, hubspot_email, 
+                        `timestamp`, `name`, 
+                        profilepic, mobile, 
+                        telephone, postalCode, 
+                        `address`, orders_count, 
+                        total_buy, `role`,  
+                        token, gcmToken, newGcmToken, androidToken, 
+                        user_stock, 
+                        fname, lname, 
+                        selectedArts, 
+                        area, giftcode, followers, `following`, 
+                        user_key, ex_user_id
+                    ) VALUES (
+                        '$userObject->username', 0,
+                        '$userObject->email', '$userObject->hubspot_mail' ,
+                        $date, '$userObject->name', 
+                        '', '$userObject->mobile', 
+                        '', '', 
+                        '', 0, 
+                        0, '$userObject->role', 
+                        '', '', '', '', 
+                        0, 
+                        '', '', 
+                        '', 
+                        0, 0, 0, 0, 
+                        '', $userObject->id
+                    ) "
+                );
+                $user = DB::select("SELECT * FROM uses WHERE ex_user_id = $userObject->id LIMIT 1");
+                if(count($user) === 0){
+                    echo json_encode(array('status' => 'failed', 'source' => 'm', 'message' => 'could not create the new user', 'umessage' => 'خطا در ایجاد کاربر جدید'));
+                    exit();
+                }else{
+                    $user = $user[0];
+                    $request->userId = $user->id;
+                    DB::insert("INSERT INTO users_authentication_tokens (token, user_id, status, expiration_date) values ('$token', $user->id, 1, $userObject->token_expires_at)");
+                    return $next($request);
+                }
             }
             $user = $user[0];
             $insertQueryResult = DB::insert("INSERT INTO users_authentication_tokens (token, user_id, status, expiration_date) values ('$token', $user->id, 1, $userObject->token_expires_at)");

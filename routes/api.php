@@ -236,6 +236,9 @@ Route::get('/get-six-new-product', function(){
     /*#####| HOME ROUTES |#####*/
     Route::get('/home-information',                     [HomeController::class,             'homeInformation']);
 
-    Route::get('/testdate', function(){
-        echo jdate('y-m-d H:i:s', 1608538986);
+    Route::get('/testdate', function(Request $request){
+        $key = "12345^&*(H0n@r!54321)*&^54321";
+        $token = md5(md5(240308 . "." . $key));
+        echo $token;
+        //echo jdate('y-m-d H:i:s', 1608538986);
     });

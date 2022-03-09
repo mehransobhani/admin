@@ -204,18 +204,98 @@ class UserController extends Controller
     public function updateUser(Request $request){
         $headers = $request->header();
         if(!isset($headers['token'])){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'header is missing'));
+            echo json_encode(array('status' => 'failed', 'source' => 'm', 'message' => 'header is missing', 'umessage' => 'بروز خطا در شناسایی مبدا'));
             exit();
         }
-        $header = $headers['token'][0];
-        if(!isset($request->id)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+
+        $headerToken = $headers['token'][0];
+
+        $parameters = $request->json()->all();
+        
+        $key = "12345^&*(H0n@r!54321)*&^54321";
+
+        if(!isset($parameters['id'])){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'messsage' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
         }
+
+        if($headerToken !== md5(md5($parameters['id'] . "." . $key))){
+            echo json_encode(array('status' => 'failed', 'source' => 'm', 'message' => 'user is not authenticated', 'umessage' => 'خطا در شناسایی اطلاعات مبدا'));
+            exit();
+        }
+
+        if(!isset($parameters['fname'])){
+            $exUserId = $parameters['id'];
+            $name = $parameters['name'];
+            $email = $parameters['email'];
+            $user = DB::select("SELECT * FROM users WHERE ex_user_id = $exUserId LIMIT 1 ");
+            if(count($user) === 0){
+                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user is not created yet', 'umessage' => 'کاربر درحال حاضر ایجاد نشده است'));
+                exit();
+            }
+            DB::update(
+                "UPDATE users 
+                SET `name` = '$name', email = '$email' 
+                WHERE ex_user_id = $exUserId "
+            );
+            echo json_encode(array('status' => 'done', 'message' => 'users information successfully updated'));
+            exit();
+        }else{
+            $exUserId = $parameters['id'];
+            $fname = $parameters['fname'];
+            $lname = $parameters['lname'];
+            $mobile = $parameters['mobile'];
+            $telephone = $parameters['telephone'];
+            $postalCode = $parameters['postal_code'];
+            $nationalCode = $parameters['national_code'];
+            $lat = $parameters['lat'];
+            $lng = $parameters['lng'];
+            $provinceName = $parameters['province_name'];
+            $cityName = $parameters['city_name'];
+            $addressText = $parameters['address_text'];
+
+            if($lat === null){
+                $lat = ' NULL ';
+            }
+            if($lng === null){
+                $lng = ' NULL ';
+            }
+
+            $user = DB::select("SELECT * FROM users WHERE ex_user_id = $exUserId LIMIT 1");
+                
+            if(count($user) !== 0){
+                //{"addressPack":{"province":"تهران","city":"تهران","postal":"1453683374","address":"خیابان سازمان آب بین پل یادگار و خ نیرو پلاک۱۵۴ واحد۶"}}
+                $addressObject = new stdClass();
+                $addressObject->addressPack = new stdClass();
+                $addressObject->addressPack->province = $provinceName;
+                $addressObject->addressPack->city = $cityName;
+                $addressObject->addressPack->postal = $postalCode;
+                $addressObject->addressPack->address = $addressText;
+                $addressString = json_encode($addressObject);
+                DB::update(
+                    "UPDATE users 
+                    SET fname  = '$fname' ,
+                        lname = '$lname' ,
+                        mobile = '$mobile' , 
+                        telephone = '$telephone' , 
+                        postalCode = '$postalCode' , 
+                        national_code = '$nationalCode' ,
+                        `address` = '$addressString' 
+                    WHERE ex_user_id = $exUserId "
+                );
+                echo json_encode(array('status' => 'done', 'message' => 'users address successfully updated'));
+                exit();
+            }else{
+                echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'user does not exist', 'umessage' => 'کاربر وجود ندارد'));
+                exit();
+            }
+        }
+
+        /*
         $exUserId = $request->id;
         $key = "12345^&*(H0n@r!54321)*&^54321";
         $generagedKey = md5(md5($exUserId . "." . $key));
-        if($generagedKey !== $header){
+        if($generagedKey !== $headerToken){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'headers mismatch'));
             exit();
         }
@@ -279,6 +359,7 @@ class UserController extends Controller
             exit();
         }
         echo json_encode(array('status' => 'done', 'message' => 'user successfully updated'));
+        */
     }
 
     public function createuserKey($username){
@@ -300,238 +381,8 @@ class UserController extends Controller
         return json_encode($address);
     }
 
-    public function addUser($token){
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL,"https://auth.honari.com/api/user-info");
-        //curl_setopt($ch, CURLOPT_POSTFIELDS, ['token' => $token]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        $headers = [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $token,
-            'Content-Length: ' . strlen(json_encode(['token' => $token]))
-        ];
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        $server_output = curl_exec ($ch);
-        curl_close ($ch);
-        if($server_output == '"user is not authenticate."'){
-            $response = new stdClass();
-            $response->status = 'failed';
-            $response->message = 'token is not valid';
-            $response->umessage = 'کاربر شناسایی نشد';
-            return $response;
-        }
-        if($server_output == null){
-            $response = new stdClass();
-            $response->status = 'failed';
-            $response->message = 'could not connect to user server';
-            $response->umessage = 'خطا در دسترسی به اطلاعات کاربر';
-            return $response;
-        }
-        $userObject = json_decode($server_output);
-        if(!is_object($userObject)){
-            $response = new stdClass();
-            $response->status = 'failed';
-            $response->message = 'response is not json';
-            $response->umessage = 'خطا در نوع پاسخ دریافتی';
-            return $response;
-        }
-        $time = time();
 
-        /*user table:
-        #username: string mobile
-        #password: hashedkpassword which is reserve : e10adc3949ba59abbe56e057f20f883e
-        #userlevel: 0
-        email: user email string it should be empty for user that does not have email
-        hubspot_mail: ...
-        timestamp: date of user first log in
-        valid: 0
-        name: full name string
-        profilepic: ''
-        mobile: phone number
-        telephone: ''
-        postalCode: ''
-        address: ''
-        orders_count: 0
-        total_buy: 0
-        role: ''
-        token: ''
-        gcmToken: ''
-        newGcmToken: ''
-        androidToken: ''
-        user_stock: 0,
-        fname: '',
-        lname: ''
-        selectedArts = ''
-        area: 0
-        giftcode: 0
-        followers: 0
-        following: 0
-        user_key: ? string
-        can_cash_pay: 1
-        last_update: string timestamp of last update
-        v_id: NULL
-        national_code: NULL
-        lat: NULL,
-        lng: NULL,
-        ex_user_id: <id></id>
-                                */
 
-        $urlKey = $this->createuserKey($userObject->username);
-
-        $userAddress = $this->createUserAddress($userObject);
-
-        DB::insert(
-            "INSERT INTO users (
-                username , `password`, 
-                userlevel: 0, email, 
-                hubspot_mail, `timestamp`: $time, 
-                valid, `name`, 
-                profilepic: '', mobile, 
-                telephone, postalcode, 
-                `address`, orders_count: 0, 
-                total_buy: 0, `role`, 
-                token: '', gcmToken: '', 
-                newGcmToken: '', androidToken: '', 
-                user_stock: 0, fname, 
-                lname, selectedArts: '', 
-                area: 0, giftcode: 0, 
-                followers: 0, followings: 0, 
-                user_key, can_cash_pay: 1, 
-                last_update: $time, v_id: NULL, 
-                national_code: NULL, lat,
-                lng, ex_user_id 
-            ) VALUES (
-                '$userObject->username' 'e10adc3949ba59abbe56e057f20f883e', 
-                0, '$userObject->email', 
-                '$userObject->email', $time, 
-                0, '$userObject->name', 
-                '', '$userObject->username', 
-                '$userObject->telephone', '$userObject->postalCode', 
-                '$userAddress', 0, 
-                0, '$userObject->role', 
-                '', '', 
-                '', '', 
-                0, $userObject->fname, 
-                $userObject->lname, '', 
-                0, 0, 
-                0, , 
-                '', 1, 
-                $time, NULL, 
-                NULL, $userObject->lat, 
-                $userObject->lng, $userObject->id
-            )"
-        );
-
-        $courses = DB::select(
-            "SELECT id, `name`, cover_image, price, `off`, kind, urlfa FROM courses WHERE `status` = 1 ORDER BY create_at DESC LIMIT 4 "
-        );
-        if(count($courses) === 0){
-            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'could not find any available course', 'courses' => []));
-            exit();
-        }
-        foreach($courses as $course){
-            if($course->kind === 'class'){
-                $course->url = 'https://honari.com/academy/courses/' . $course->urlfa;
-            }else if($course->kind === 'bundle'){
-                $course->url = 'https://honari.com/academy/bundles/' . $course->urlfa;
-            }
-            $course->image = 'https://academy.honari.com/warehouse/images/classes/' + $course->cover_image;
-        }
-        var_dump($courses);
-        /*
-
-        #################################################################
-{
-    "success": true,
-    "data": {
-        "user": {
-            "id": 240308,
-            "username": "09109495026",
-            "email": "hadi1998goodboy@gmail.com",
-            "name": "هادی حسین پور",
-            "profilepic": null,
-            "mobile": "09109495026",
-            "telephone": "02112345678",
-            "postalCode": "1234567891",
-            "address": "آدرس - خیابان - کوچه - پلاک",
-            "role": "admin",
-            "fname": "هادی",
-            "lname": "حسین پور",
-            "national_code": "0020978431",
-            "lat": 35.6651,
-            "lng": 51.0562,
-            "province_id": 1,
-            "city_id": 3351,
-            "address_2": null,
-            "can_password_reset": 1,
-            "get_province": {
-                "id": 1,
-                "name": "تهران",
-                "iso_code": "1"
-            },
-            "get_city": {
-                "id": 3351,
-                "parent_province": 1,
-                "city": "شهریار",
-                "fee": 0,
-                "status": 1
-            }
-        }
-    },
-    "message": "here is user information."
-}*/
-        /*DB::insert(
-            "INSERT INTO users 
-            SET "
-        );*/
-    }
-
+    
 }
 
-/*namespace App\Http\Controllers\API;
-use Illuminate\Http\Request; 
-use App\Http\Controllers\Controller; 
-use App\User; 
-use Illuminate\Support\Facades\Auth; 
-use Validator;
-class UserController extends Controller 
-{
-public $successStatus = 200;
-
-    public function login(){ 
-        if(Auth::attempt(['email' => request('email'), 'password' => request('password')])){ 
-            $user = Auth::user(); 
-            $success['token'] =  $user->createToken('MyApp')-> accessToken; 
-            return response()->json(['success' => $success], $this-> successStatus); 
-        } 
-        else{ 
-            return response()->json(['error'=>'Unauthorised'], 401); 
-        } 
-    }
-
-    public function register(Request $request) 
-    { 
-        $validator = Validator::make($request->all(), [ 
-            'name' => 'required', 
-            'email' => 'required|email', 
-            'password' => 'required', 
-            'c_password' => 'required|same:password', 
-        ]);
-if ($validator->fails()) { 
-            return response()->json(['error'=>$validator->errors()], 401);            
-        }
-$input = $request->all(); 
-        $input['password'] = bcrypt($input['password']); 
-        $user = User::create($input); 
-        $success['token'] =  $user->createToken('MyApp')-> accessToken; 
-        $success['name'] =  $user->name;
-return response()->json(['success'=>$success], $this-> successStatus); 
-    }
-
-    public function details() 
-    { 
-        $user = Auth::user(); 
-        return response()->json(['success' => $user], $this-> successStatus); 
-    } 
-}
-*/

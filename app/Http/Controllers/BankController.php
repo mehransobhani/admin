@@ -121,7 +121,7 @@ class BankController extends Controller
         }
         $order = $order[0];
         if($order->stat !== 6){
-            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'source' => 'c', 'message' => 'order had been confirmed', 'umessage' => 'سفارش تایید شده بود'));
+            echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'new' => false, 'source' => 'c', 'message' => 'order had been confirmed', 'umessage' => 'سفارش تایید شده بود'));
             exit();
         }
         $this->insertTransaction(
@@ -178,7 +178,7 @@ class BankController extends Controller
                 $orderItem->pack_id,
                 $orderItem->count, 
                 $orderItem->pack_count,
-                $userId,
+                $userId, 
                 1,
                 NULL, 
                 5
@@ -190,7 +190,13 @@ class BankController extends Controller
             $orderController->updateUserStockAndLog($user->username, $userId, $user->username, $orderId, $desc, (-1 * $order->used_stock_user), 6);
         }
         $orderController->updateUserOrderCountAndTotalBuy($userId,(($order->total_items + $order->shipping_cost) - ($order->off + $order->shipping_price_off)),1);
-        echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber));
+
+        DB::update(
+            "UPDATE shoppingCarts 
+            SET active = 0 
+            WHERE user_id = $userId"
+        );
+        echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'new'=> true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber));
         exit();
     }
 

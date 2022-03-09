@@ -257,7 +257,7 @@ class OrderController extends Controller
                     $totalWeight += ($productInfo->prodWeight) + ($value->count);
                 }
                 if($productInfo->buyPrice !== NULL){
-                    $totalBuyPrice += ($productInfo->count * ($productInfo->buyPrice * $productInfo->count));
+                    $totalBuyPrice += ($value->count * ($productInfo->buyPrice * $productInfo->count));
                 }
             }
         }
@@ -567,10 +567,52 @@ class OrderController extends Controller
             DB::update(
                 "UPDATE shoppingCarts 
                 SET active = 0 
-                WHERE id = $cart->id"
+                WHERE user_id = $userId "
             );
 
-            return json_encode(array('status' => 'done', 'stage' => 'done', 'message' => 'order is set', 'umessage' => 'خرید با موفقیت انجام شد', 'orderId' => $orderId));
+            $information = [];
+            $information['paidPrice'] = ($orderPrice + $shippingPrice) - ($orderDiscount + $shippingDiscount);
+            $information['buyPrice'] = $totalBuyPrice;
+            $information['userPhone'] = $user->username;
+            $information['userId'] = $user->ex_user_id;
+            $information['products'] = [];
+            $information['categories'] = [];
+            foreach($orderItems as $orderItem){
+                $info = DB::select(
+                    "SELECT OI.count AS `count`, 
+                        P.id AS productId, 
+                        P.prodName_fa AS productName, 
+                        OI.price AS productPrice, 
+                        OI.off AS productDiscount, 
+                        C.id AS categoryId,  
+                        C.name AS categoryName
+                    FROM order_items OI 
+                        INNER JOIN products P ON OI.product_id = P.id 
+                        INNER JOIN product_category PC ON P.id = PC.product_id 
+                        INNER JOIN category C ON PC.category = C.id 
+                    WHERE OI.product_id = $orderItem->product_id AND OI.order_id = $orderId 
+                    LIMIT 1"
+                );
+                if(count($info) !== 0){
+                    $info = $info[0];
+
+                    $productItem = [];
+                    $productItem['count'] = $info->count;
+                    $productItem['productId'] = $info->productId;
+                    $productItem['productName'] = $info->productName;
+                    $productItem['productPrice'] = $info->productPrice;
+                    $productItem['productDiscount'] = $info->productDiscount;
+
+                    $categoryItem = [];
+                    $categoryItem['categoryId'] = $info->categoryId;
+                    $categoryItem['categoryName'] = $info->categoryName;
+
+                    array_push($information['products'], $productItem);
+                    array_push($information['categories'], $categoryItem);
+                }
+            }
+
+            return json_encode(array('status' => 'done', 'stage' => 'done', 'message' => 'order is set', 'umessage' => 'خرید با موفقیت انجام شد', 'orderId' => $orderId, 'information' => $information));
         }else{
             $parameters = [
                 'InvoiceNumber' => '' . $orderId,
@@ -743,7 +785,7 @@ class OrderController extends Controller
             exit();
         }
         $orderItems = DB::select("SELECT * FROM order_items WHERE order_id = $orderId");
-        foreach($orderItems as $orderItem){
+        foreach($orderItems as $orderItem){    
             $productDescription =  'افزایش موجودی به دلیل کنسل شدن سفارش توسط کاربر';
             $this->manipulateProductAndLog(
                 $orderItem->product_id, 
@@ -767,6 +809,16 @@ class OrderController extends Controller
                 'افزایش موجودی به دلیل کنسلی سفارش', 
                 $orderId, 
                 "NULL"
+            );
+            $this->manipulateProductLocationAndLog(
+                $orderItem->product_id, 
+                $orderItem->pack_id, 
+                $orderItem->count, 
+                $orderItem->pack_count, 
+                $userId, 
+                NULL, 
+                1, 
+                6 
             );
             $this->insertProductReturns(
                 $orderItem->product_id, 
@@ -794,6 +846,19 @@ class OrderController extends Controller
             7
         );
         $this->updateUserOrderCountAndTotalBuy($userId, (-1 * $userPaidPrice), -1);
+
+        /***| REACTIVATE THE LAST SHOPPING CART IF USER HAS NOT CREATED A NEW CART YET |***/
+        $lastShoppingCart = DB::select("SELECT id , active FROM shoppingCarts WHERE `user_id` = $userId ORDER BY id DESC LIMIT 1 "); 
+        if(count($lastShoppingCart) !== 0){
+            $lastShoppingCart = $lastShoppingCart[0];
+            if($lastShoppingCart->active != 0){
+                DB::update(
+                    "UPDATE shoppingCarts 
+                    SET active = 1 
+                    WHERE id = $lastShoppingCart->id "
+                );
+            }
+        }
         
         echo json_encode(array('status' => 'done', 'message' => 'order successfully canceled', 'umessage' => 'سفارش با موفقیت لغو شد'));
     }

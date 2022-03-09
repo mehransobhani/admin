@@ -309,7 +309,7 @@ class ProductController extends Controller
                     PP.stock AS maxCount, 
                     PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS ProductLabel, 
                     PP.count AS productUnitCount 
-            FROM discount_dependencies DDT INNER JOIN discounts DT ON DT.id = DDT.discount_id INNER JOIN products P ON DDT.dependency_id = P.id INNER JOIN product_pack PP ON DDT.dependency_id = PP.product_id
+            FROM discount_dependencies DDT INNER JOIN discounts DT ON DT.id = DDT.discount_id INNER JOIN products P ON DDT.dependency_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON DDT.dependency_id = PP.product_id
             WHERE DDT.discount_id IN (
                 SELECT D.id 
                 FROM discounts D 
@@ -319,7 +319,7 @@ class ProductController extends Controller
                     D.reusable = 1 AND D.status = 1 AND D.neworder = 0 AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND 
                     ((D.expiration_date IS NULL AND D.start_date IS NOT NULL AND D.start_date <= $time AND D.finish_date IS NOT NULL AND D.finish_date >= $time) OR (D.expiration_date IS NOT NULL AND $time <= D.expiration_date AND D.start_date IS NULL AND D.finish_date IS NULL)) AND 
                     D.code IS NULL 
-            ) AND P.prodStatus = 1 AND PP.status = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock)
+            ) AND P.prodStatus = 1 AND PP.status = 1 AND PL.stock > 0 AND PL.pack_stock > 0 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock)
             ORDER BY DT.date DESC
             LIMIT 6"
         );

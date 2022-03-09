@@ -424,8 +424,38 @@ class HomeController extends Controller
         if(count($pcs) !== 0){
             $populars = $pcs;
         }
+        
+        $discountedProducts = [];
+        /***| TOP DISCOUNTED PRODUCTS |***/
+        // this is going to be fantstic
+        $time = time();
+        $discountInformation = DB::select(
+            "SELECT DDT.dependency_id , DT.id AS discountId, P.id AS productId, 
+                    PP.id AS productPackId, P.prodName_fa AS productName, 
+                    P.prodID, P.url AS productUrl, P.prodStatus, 
+                    P.prodUnite AS productUnitName, 
+                    PL.pack_stock AS maxCount, 
+                    PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS ProductLabel, 
+                    PP.count AS productUnitCount 
+            FROM discount_dependencies DDT INNER JOIN discounts DT ON DT.id = DDT.discount_id INNER JOIN products P ON DDT.dependency_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON DDT.dependency_id = PP.product_id 
+            WHERE DDT.discount_id IN (
+                SELECT D.id 
+                FROM discounts D 
+                WHERE D.type_id = 1 AND 
+                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.type_id IN (2,3,4)) = 0 AND 
+                    (SELECT count(DD.id) FROM discount_dependencies DD WHERE DD.discount_id = D.id AND DD.type_id = 1 ) <> 0 AND 
+                    D.reusable = 1 AND D.status = 1 AND D.neworder = 0 AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND 
+                    ((D.expiration_date IS NULL AND D.start_date IS NOT NULL AND D.start_date <= $time AND D.finish_date IS NOT NULL AND D.finish_date >= $time) OR (D.expiration_date IS NOT NULL AND $time <= D.expiration_date AND D.start_date IS NULL AND D.finish_date IS NULL)) AND 
+                    D.code IS NULL 
+            ) AND P.prodStatus = 1 AND PP.status = 1 AND PL.stock > 0 AND PL.pack_stock > 0 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock)
+            ORDER BY DT.date DESC
+            LIMIT 6"
+        );
+        if(count($discountInformation) !== 0){
+            $discountedProducts = DiscountCalculator::topSixProductsDiscountCalculator($discountInformation);   
+        }
 
-        echo json_encode(array('status' => 'done', 'courses' => $courses, 'products' => $products, 'carousel' => $carousel, 'topBanners' => $topBanners, 'populars' => $populars));
+        echo json_encode(array('status' => 'done', 'courses' => $courses, 'products' => $products, 'carousel' => $carousel, 'topBanners' => $topBanners, 'populars' => $populars, 'discountedProducts' => $discountedProducts));
     }
 
     /**
