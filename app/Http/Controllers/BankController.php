@@ -196,7 +196,51 @@ class BankController extends Controller
             SET active = 0 
             WHERE user_id = $userId"
         );
-        echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'new'=> true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber));
+        $orderInformatin = DB::select("SELECT total_items, shipping_cost, shipping_price_off, `off, buy_price` FROM orders WHERE id = $orderId LIMIT 1");
+        if(count($orderInformatin) !== 0){
+            $orderInformatin = $orderInformatin[0];
+            $information = [];
+            $information['paidPrice'] = ($orderInformatin['total_items'] + $orderInformatin['shipping_cost']) - ($orderInformatin['shipping_price_off'] + $orderInformatin['off']);
+            $information['buyPrice'] = $orderInformatin['buy_price'];
+            $information['userPhone'] = $user->username;
+            $information['userId'] = $user->ex_user_id;
+            $information['products'] = [];
+            $information['categories'] = [];
+            $orderItems = DB::select(
+                "SELECT 
+                    OI.count AS `count`, 
+                    P.id AS productId, 
+                    P.prodName_fa AS productName, 
+                    OI.price AS productPrice, 
+                    OI.off AS productDiscount, 
+                    C.id AS categoryId,  
+                    C.name AS categoryName 
+                FROM order_items OI 
+                INNER JOIN products P ON OI.product_id = P.id 
+                    INNER JOIN product_category PC ON PC.product_id = OI.product_id 
+                    INNER JOIN category C INNER JOIN C.id = PC.category 
+                WHERE OI.order_id IN (
+                    SELECT id FROM order_items WHERE order_id = $orderId 
+                ) "
+            ); 
+            foreach($orderItems AS $info){ 
+                $productItem = []; 
+                $productItem['count'] = $info->count; 
+                $productItem['productId'] = $info->productId; 
+                $productItem['productName'] = $info->productName; 
+                $productItem['productPrice'] = $info->productPrice; 
+                $productItem['productDiscount'] = $info->productDiscount; 
+
+                $categoryItem = []; 
+                $categoryItem['categoryId'] = $info->categoryId; 
+                $categoryItem['categoryName'] = $info->categoryName; 
+
+                array_push($information['products'], $productItem); 
+                array_push($information['categories'], $categoryItem);
+            } 
+            
+        } 
+        echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'new'=> true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber, 'information' => $information));
         exit();
     }
 
