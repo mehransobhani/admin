@@ -230,13 +230,13 @@ class BankController extends Controller
                 $productItem['productName'] = $info->productName; 
                 $productItem['productPrice'] = $info->productPrice; 
                 $productItem['productDiscount'] = $info->productDiscount; 
-
+                                    
                 $categoryItem = []; 
                 $categoryItem['categoryId'] = $info->categoryId; 
                 $categoryItem['categoryName'] = $info->categoryName; 
 
                 array_push($information['products'], $productItem); 
-                array_push($information['categories'], $categoryItem);
+                array_push($information['categories'], $categoryItem);  
             } 
             
         } 

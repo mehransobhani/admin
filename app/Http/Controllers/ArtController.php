@@ -34,8 +34,8 @@ class ArtController extends Controller
             ORDER BY _order ASC "
         );
         $topSixProducts = DB::select(
-            "SELECT P.id, PL.pack_id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
-            FROM product_category PC INNER JOIN products P ON P.id = PC.product_id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id 
+            "SELECT P.id, PL.pack_id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category, C.name AS categoryName 
+            FROM product_category PC INNER JOIN products P ON P.id = PC.product_id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN category C ON PC.category = C.id 
             where PC.category IN (SELECT id FROM category C WHERE C.parentId = $result->categoryId OR C.id = $result->categoryId) AND P.prodStatus = 1 AND PP.status = 1 AND PL.stock > 0 AND PL.pack_stock > 0 
             ORDER BY P.prodDate DESC 
             LIMIT 6"
@@ -55,6 +55,7 @@ class ArtController extends Controller
             $productObject->productUnitCount = $tsp->count;
             $productObject->productUnitName = $tsp->prodUnite;
             $productObject->productLabel = $tsp->label;
+            $productObject->categoryName = $tsp->categoryName;
             array_push($sixNewProducts, $productObject);
         }
         if(sizeof($sixNewProducts) !== 0){
