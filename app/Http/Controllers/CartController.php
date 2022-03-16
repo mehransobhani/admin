@@ -53,8 +53,8 @@ class CartController extends Controller
                 array_push($cartProducts, $productObject);
             }else{
                 $product = DB::select(
-                    "SELECT P.id, 0 AS packId, P.prodName_fa, P.prodID, P.url, P.prodUnite, '' AS label, 0 AS `count`, PC.category 
-                    FROM products P
+                    "SELECT P.id, $key AS packId, P.prodName_fa, P.prodID, P.url, P.prodUnite, '' AS label, 0 AS `count`, PC.category 
+                    FROM products P 
                     INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
                     WHERE PP.id = $key AND P.prodStatus = 1 
                     LIMIT 1");
@@ -523,13 +523,13 @@ class CartController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی اشتباه است'));
             exit();
         }
-        $productPackId = $request->productPackId;
-        $userCart = DB::select(
+        $productPackId = $request->productPackId; 
+        $userCart = DB::select( 
             "SELECT id, products 
-            FROM shoppingCarts
-            WHERE user_id = $userId AND active = 1
-            ORDER BY timestamp DESC
-            LIMIT 1"
+            FROM shoppingCarts 
+            WHERE user_id = $userId AND active = 1 
+            ORDER BY timestamp DESC 
+            LIMIT 1 "
         );
         if(count($userCart) == 0){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'cart is empty', 'سبد خرید فعالی وجود ندارد'));

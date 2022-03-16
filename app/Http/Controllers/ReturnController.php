@@ -15,18 +15,28 @@ use stdClass;
 class ReturnController extends Controller
 {
     //@route: /api/user-all-return-requests <--> @middleware: ApiAuthenticationMiddleware
-    public function userAllReturnRequests(Request $request){
-        if(!Auth::check()){
-            echo json_encode(array('status' => 'failed', 'message' => 'user is not authenticated'));
+    public function userAllReturnRequests(Request $request){     
+        $userId = $request->userId;
+
+        $returns = DB::select(
+            "SELECT P.id AS productId, R.item_id AS orderItemId, R.order_id AS orderId, R.number AS `count`, P.prodName_fa AS productName, R.description, RQ.question AS reason, R.status, R.date 
+            FROM returned R 
+            INNER JOIN order_items OI ON R.item_id = OI.id 
+                INNER JOIN products P ON OI.product_id = P.id 
+                INNER JOIN returned_question RQ ON R.reason = RQ.id 
+            WHERE R.user_id = $userId ORDER BY R.id DESC "
+        );
+
+        if(count($returns) === 0){
+            echo json_encode(array('status' => 'done', 'message' => 'there is not any return requests', 'found' => false, 'result' => []));
             exit();
         }
-        $user = Auth::user();
-        if($user == null){
-            echo json_encode(array('status' => 'failed', 'message' => 'user is not authenticated'));
-            exit();
+
+        foreach($returns as $r){
+            $r->date = jdate("Y-m-d H:i:s", strtotime($r->date));
         }
-        $all = DB::select("SELECT P.id AS product_id, R.item_id, R.order_id, P.prodName_fa, R.description, R.reason, R.image, R.status FROM returned R INNER JOIN order_items OI ON R.item_id = OI.id
-            INNER JOIN products P ON OI.product_id = P.id WHERE R.user_id = " . $user->id . " ORDER BY R.id DESC ");
+
+        echo json_encode(array('status' => 'done', 'message' => 'return requests successfully found', 'found' => 'true', 'result' => $returns));
 
         // https://honari.com/image/returned/big/returned_202905_1632827438_70.jpg
         // 0 : waiting
@@ -35,17 +45,6 @@ class ReturnController extends Controller
         // 3 : ignored
         // 4 : archive
         // 5 : deficit
-
-        if(count($all) !== 0){
-            $allReturns = array();
-            foreach($all as $r){
-                array_push($allReturns, array('product_id' => $r->product_id, 'order_id' => $r->order_id, 'item_id' => $r->item_id,
-                    'product_name' => $r->prodName_fa, 'reason' => $r->reason, 'description' => $r->description, 'image' => $r->image, 'status' => $r->status));
-            }
-            echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'return requests are successfully found', 'requests' => $allReturns));
-        }else{
-            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'there is not any return request', 'requests' => '[]'));
-        }
     }
 
     //@route: /api/user-accepted-return-requests <--> @middleware: ApiAuthenticationMiddleware

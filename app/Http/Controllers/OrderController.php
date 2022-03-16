@@ -228,7 +228,7 @@ class OrderController extends Controller
         $cartProductsObject = json_decode($cart->products);
         foreach($cartProductsObject as $key => $value){
             $productInfo = DB::select(
-                "SELECT P.id, PP.id AS packId, P.buyPrice, P.prodName_fa, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
+                "SELECT P.id, PP.id AS packId, P.buyPrice, P.prodName_fa, P.type, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
                 WHERE PL.stock > 0 AND PL.pack_stock > 0 AND (PL.pack_stock * PP.count <= PL.stock) AND PP.status = 1 AND P.prodStatus = 1 AND PL.pack_id = $key AND P.stock > 0 AND PP.stock > 0 AND (P.stock >= PP.stock * PP.count)"
@@ -252,13 +252,21 @@ class OrderController extends Controller
                 $productObject->productBuyPrice = $productInfo->buyPrice;
                 $productObject->productStock = $productInfo->productStock;
                 $productObject->packStock = $productInfo->packStock;
+                //####### TO BE ADDED ########
+                //$productObject->type = 'product';
                 array_push($cartProducts, $productObject);
                 if($productInfo->prodWeight !== NULL){
                     $totalWeight += ($productInfo->prodWeight) + ($value->count);
                 }
+                //####### TO BE ADDED ########
+                /*
                 if($productInfo->buyPrice !== NULL){
                     $totalBuyPrice += ($value->count * ($productInfo->buyPrice * $productInfo->count));
                 }
+                if($productInfo->type === 'bundle'){
+                    $productObject->type = 'bundle';
+                }
+                */
             }
         }
         $allDiscounts = DiscountCalculator::totalDiscount($cartProducts, $user, $provinceId, $cityId);
@@ -468,8 +476,45 @@ class OrderController extends Controller
                     $cp->productPrice, $off, 
                     ($cp->productBuyPrice * $cp->productUnitCount), 0, 
                     $orderId, 0, $sellPrice, 
-                    $taxPrice, $dutyPrice)"
+                    $taxPrice, $dutyPrice) "
             );
+            //####### TO BE ADDED ########
+            /*
+            if($cp->type == 'bundle'){
+                $subProducts = DB::select(
+                    "SELECT * 
+                    FROM bundle_items BI 
+                    INNER JOIN product_pack PP ON BI.bundle_id = PP.product_id 
+                    WHERE bundle_id = $cp->productId "
+                );
+                if(count($subProducts) != 0){
+                    $count = count($subProducts);
+                    $eachPrice = $cp->productPrice / $count;
+                    $tp = round($cp->productPrice / 109 * 100 * 6 / 100);
+                    $dp = round($cp->productPrice / 109 * 100 * 3 / 100);
+                    $sp = $cp->productPrice - ($tp + $dp);
+                    // this is going to be one of the most b
+                    foreach($subProducts as $subProduct){
+                        DB::insert(
+                            "INSERT INTO order_items
+                                (product_id, count, 
+                                pack_id, pack_count, pack_name, 
+                                price, off, 
+                                buy_price, off2, 
+                                order_id, bundle_id, sell_price, 
+                                tax_price, duty_price) 
+                            VALUES 
+                                ($cp->productId, $cp->productCount,
+                                $cp->productPackId, $cp->productUnitCount, '$cp->productLabel', 
+                                $cp->productPrice, $off, 
+                                ($cp->productBuyPrice * $cp->productUnitCount), 0, 
+                                $orderId, 0, $sellPrice, 
+                                $taxPrice, $dutyPrice) "
+                        );
+                    }
+                }
+            }
+            */
 
             if($cp->productPrice !== $cp->discountedPrice){
                 /***| INSERT DISCOUNT INFORMATION OF THE PRODUCTS WHICH THEIR PRICE REDUCED BECAUSE OF DISCOUNTS |***/

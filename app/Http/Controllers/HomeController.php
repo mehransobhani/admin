@@ -56,7 +56,7 @@ class HomeController extends Controller
                 /*** PRODUCT INFORMATION ***/
                 $productObject = new stdClass();
                 $pi = DB::select(
-                    "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
+                    "SELECT P.id, PP.id AS packId, P.type, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
                     FROM products P
                     INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
                     WHERE P.id = $product->id AND PP.status = 1 ");
@@ -80,11 +80,30 @@ class HomeController extends Controller
                     $productObject->productLabel = $pi->label;
                     $productObject->aparat = $pi->aparat;
                     $productObject->productOtherImages = $pi->prodOimages;
+                    $productObject->subProducts = [];
                     $productObject->productStatus = $productStatus;
                     
                     if($productStatus === -1){
                         $productObject->productPrice = 0;
                         $productObject->productBasePrice = 0;
+                    }
+
+
+                    if($pi->type == 'bundle'){
+                        $productObject->type = 'bundle';
+                        $sps = DB::select(
+                            "SELECT P.id, P.prodName_fa AS name, P.url 
+                            FROM bundle_items BI 
+                            INNER JOIN product_pack PP ON BI.product_pack_id = PP.id 
+                            INNER JOIN products P ON P.id = PP.product_id 
+                            WHERE BI.bundle_id = $product->id 
+                            ORDER BY P.prodName_fa ASC "
+                        );
+                        if(count($sps) != 0){
+                            $productObject->subProducts = $sps;
+                        }
+                    }else{
+                        $productObject->type = 'product';
                     }
 
                     $productObject = DiscountCalculator::calculateProductDiscount($productObject);
