@@ -252,6 +252,7 @@ class OrderController extends Controller
                 $productObject->productBuyPrice = $productInfo->buyPrice;
                 $productObject->productStock = $productInfo->productStock;
                 $productObject->packStock = $productInfo->packStock;
+                $productObject->type = $productInfo->type;
                 //####### TO BE ADDED ########
                 //$productObject->type = 'product';
                 array_push($cartProducts, $productObject);
@@ -478,22 +479,23 @@ class OrderController extends Controller
                     $orderId, 0, $sellPrice, 
                     $taxPrice, $dutyPrice) "
             );
-            //####### TO BE ADDED ########
-            /*
             if($cp->type == 'bundle'){
                 $subProducts = DB::select(
-                    "SELECT * 
+                    "SELECT P.id AS productId, PP.id AS packId, (BI.count * BI.pack_count) AS `count`, PP.label  
                     FROM bundle_items BI 
-                    INNER JOIN product_pack PP ON BI.bundle_id = PP.product_id 
+                    INNER JOIN product_pack PP ON BI.product_pack_id = PP.id 
+                    INNER JOIN products P ON P.id = PP.product_id 
                     WHERE bundle_id = $cp->productId "
                 );
                 if(count($subProducts) != 0){
-                    $count = count($subProducts);
-                    $eachPrice = $cp->productPrice / $count;
-                    $tp = round($cp->productPrice / 109 * 100 * 6 / 100);
-                    $dp = round($cp->productPrice / 109 * 100 * 3 / 100);
+                    $bundleCount = count($subProducts);
+                    $bundleBuyPrice = $cp->productBuyPrice * $cp->productUnitCount;
+                    $eachPrice = $cp->productPrice / $bundleCount;
+                    $eachBuyPrice = $bundleBuyPrice / $bundleCount;
+                    $tp = round($eachPrice / 109 * 100 * 6 / 100);
+                    $dp = round($eachBuyPrice / 109 * 100 * 3 / 100);
                     $sp = $cp->productPrice - ($tp + $dp);
-                    // this is going to be one of the most b
+                    
                     foreach($subProducts as $subProduct){
                         DB::insert(
                             "INSERT INTO order_items
@@ -504,17 +506,16 @@ class OrderController extends Controller
                                 order_id, bundle_id, sell_price, 
                                 tax_price, duty_price) 
                             VALUES 
-                                ($cp->productId, $cp->productCount,
-                                $cp->productPackId, $cp->productUnitCount, '$cp->productLabel', 
-                                $cp->productPrice, $off, 
-                                ($cp->productBuyPrice * $cp->productUnitCount), 0, 
-                                $orderId, 0, $sellPrice, 
-                                $taxPrice, $dutyPrice) "
+                                ($subProduct->productId, $cp->productCount,
+                                $subProduct->packId, $subProduct->count, '$subProduct->label', 
+                                $eachPrice, 0, 
+                                $eachBuyPrice, 0, 
+                                $orderId, $cp->productId, $eachPrice, 
+                                $tp, $dp) "
                         );
                     }
                 }
             }
-            */
 
             if($cp->productPrice !== $cp->discountedPrice){
                 /***| INSERT DISCOUNT INFORMATION OF THE PRODUCTS WHICH THEIR PRICE REDUCED BECAUSE OF DISCOUNTS |***/
@@ -525,12 +526,13 @@ class OrderController extends Controller
                         order_id, date
                     ) VALUES (
                         $cp->productId, $cp->productPrice, 
-                        ($cp->productPrice - $cp->discountedPrice), $cp->productPackId,
+                        ($cp->productPrice - $cp->discountedPrice), $cp->productPackId, 
                         $orderId, $time
                     )"
                 );
             }
         }
+        
 
         /***| INSERT LOG OF ORDER WHICH IS NOT PAID YET |***/
         DB::insert(
@@ -896,7 +898,7 @@ class OrderController extends Controller
         $lastShoppingCart = DB::select("SELECT id , active FROM shoppingCarts WHERE `user_id` = $userId ORDER BY id DESC LIMIT 1 "); 
         if(count($lastShoppingCart) !== 0){
             $lastShoppingCart = $lastShoppingCart[0];
-            if($lastShoppingCart->active != 0){
+            if($lastShoppingCart->active == 0){
                 DB::update(
                     "UPDATE shoppingCarts 
                     SET active = 1 
@@ -904,7 +906,6 @@ class OrderController extends Controller
                 );
             }
         }
-        
         echo json_encode(array('status' => 'done', 'message' => 'order successfully canceled', 'umessage' => 'سفارش با موفقیت لغو شد'));
     }
 }

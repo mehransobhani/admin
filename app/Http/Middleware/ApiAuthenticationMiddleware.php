@@ -26,7 +26,8 @@ class ApiAuthenticationMiddleware
             exit();
         }
         $token = $request->bearerToken();
-        $userAuthentication = DB::select("SELECT * FROM users_authentication_tokens WHERE token = '$token' ORDER BY expiration_date DESC LIMIT 1");
+        $encryptedToken = hash('sha256', $token);
+        $userAuthentication = DB::select("SELECT * FROM users_authentication_tokens WHERE token = '$encryptedToken' ORDER BY expiration_date DESC LIMIT 1");
         if(count($userAuthentication) == 0){
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL,"https://auth.honari.com/api/check-token");
@@ -96,12 +97,12 @@ class ApiAuthenticationMiddleware
                 }else{
                     $user = $user[0];
                     $request->userId = $user->id;
-                    DB::insert("INSERT INTO users_authentication_tokens (token, user_id, status, expiration_date) values ('$token', $user->id, 1, $userObject->token_expires_at)");
+                    DB::insert("INSERT INTO users_authentication_tokens (token, user_id, status, expiration_date) values ('$encryptedToken', $user->id, 1, $userObject->token_expires_at)");
                     return $next($request);
                 }
             }
             $user = $user[0];
-            $insertQueryResult = DB::insert("INSERT INTO users_authentication_tokens (token, user_id, status, expiration_date) values ('$token', $user->id, 1, $userObject->token_expires_at)");
+            $insertQueryResult = DB::insert("INSERT INTO users_authentication_tokens (token, user_id, status, expiration_date) values ('$encryptedToken', $user->id, 1, $userObject->token_expires_at)");
             if($insertQueryResult){
                 $request->userId = $user->id;
                 return $next($request);

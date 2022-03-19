@@ -527,7 +527,7 @@ class DeliveryServiceController extends Controller
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong delivery service', 'umessage' => 'سرویس ارسال انتخابی غلط است'));
             exit();
         }
-        $allTimes = DB::select("SELECT WT.id, WT.day, WT.interval_id, WT.type_house, WT.max_item_count, WT.expire_time, WT.label FROM work_times WT INNER JOIN work_time_interval WTI ON WT.interval_id = WTI.id ORDER BY WT.day ASC, WT.interval_id ASC");
+        $allTimes = DB::select("SELECT WT.id, WT.day, WT.interval_id, WT.type_house, WT.max_item_count, WT.expire_time, WT.label FROM work_times WT INNER JOIN work_time_interval WTI ON WT.interval_id = WTI.id ORDER BY WT.day ASC, WT.type_house ASC");
         if(count($allTimes) === 0){
             echo json_encode(array('status' => 'failed', 'message' => 'not interval found', 'umessage' => 'بازه زمانی فعالی وجود ندارد'));
             exit();
@@ -539,6 +539,8 @@ class DeliveryServiceController extends Controller
         $currentDayOfWeek = intval(jdate('w', $currentTime, '', '', 'en'));
         $start = $currentTime - ($currentSecond + (60 * $currentMinute) + (3600 * $currentHour));
         $start -= ($currentDayOfWeek * 86400);
+        $start += 86400;
+        //echo 'start : ' . $start . ' and start : ' . jdate('Y-m-d H:i:s', $start);
         $foundDatesInformation = [];
         $found = false;
         for($k = 0; $k <= 2; $k++){
@@ -546,9 +548,15 @@ class DeliveryServiceController extends Controller
                 break;
             }
             for($a=0; $a<sizeof($allTimes); $a++){
-                $wt = $start + (($k * 7* 24* 3600) + ($allTimes[$a]->day * 24*3600) + $allTimes[$a]->type_house);
+                $wt = $start + (($k * 7* 86400) + ($allTimes[$a]->day * 86400) + $allTimes[$a]->type_house);
+                if($wt >= 1647894600){
+                    $wt -= 3600;
+                }
                 $wm = $allTimes[$a]->max_item_count;
                 $we = $allTimes[$a]->expire_time;
+                if(jdate('m', $wt, '', '', 'en') == '12' && jdate('d', $wt, '', '', 'en') == '29'){
+                    continue;
+                }
                 $wds = jdate('o/m/d', $wt, '', '', 'en');
                 $whs = jdate('G:i', $wt, '', '', 'en');
                 if($wt - $we > $currentTime){

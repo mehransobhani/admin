@@ -239,6 +239,18 @@ Route::get('/get-six-new-product', function(){
     Route::get('/testdate', function(Request $request){
         $d = '2022-1-12 14:33:24';
         $time = strtotime($d);
-        echo $time;
-        //echo jdate('Y-m-d H:i:s', $time);
+        echo jdate('y-m-d H:i:s', 1647691388);
+    });
+    Route::get('/tokensss', function(){
+        $token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI1IiwianRpIjoiOWU4MzlkM2JlMzk2M2Y1ODMzNDk4MTg2YzRiYjEwYTUwMDJiZTg1YjQ2ZWI1MTNmYzIxMWM3ZmYxYWQzNWY3NTUwZmE3Njc4Mzc0ZGIyNDIiLCJpYXQiOiIxNjQ0NzQxMzMwLjIwMzkxMSIsIm5iZiI6IjE2NDQ3NDEzMzAuMjAzOTIyIiwiZXhwIjoiMTY3NjI3NzMzMC4xOTU2OTIiLCJzdWIiOiIyNDAzMDgiLCJzY29wZXMiOltdfQ.THjjkHvO3cAvOWAK41HL-DEIacFENdF_QkducBzkywSQP-7HrwQrzCfi2TjztCBwA_wzeql-zCP9ANoO_cnffufw2mvGLA07HPuzYbVEMfRsVMLMfzkQtlOZ0tS3G6X40b1jcgicBwi9LqmwJGglQy5JsGGuca-oGUElT6nnk5w5DX5meBdY4eBRp5phV-kLORc7_85ix3VUF8hIoWgWCzEh_zLr1MW-AG_2xVz5UY8131V1C2fQ6Cc6qd6N6MdhkYp9wJIgq2PSdMcFy7yGQrjtgxbOB_GRTWrWu2-O9-sgvLexICz85e4_jwQeMPKXKYChkluoWQxPcapo_6SPcXHT3e33K88ViiJlI3qjH-hNjqzqf0jALpNh7p05V-yW790UW1q9vMETI04TQptOgARWFaymgxUnvOsx95k6uCjWq95olkiLv9pv4PAV75yytDEiR8tu6TWTAn8Le1345gDabiTGPQ5R0XFeSUQX1nO77w9K_p9Z_FmizXJxOVb1s16X-sT9iUIV-VmeO_e3EWnEHhadOUGwe50NsSd4aQwLqkSoqKlyxrnH_PWinhmmMPnTlxe66Beq6qyFf0MlfoEH2KKApiuRVPPjuznx4tUCgrHTpAqQYShDRKJtxLgveW9sMyJS9oG2w2b0vVgrIom1tUHK7NrRHAjOBSpmuUY';
+        $t = md5($token);
+        echo $token;
+        echo '<br />';
+        echo 'md5 : ' . $t;
+        echo '<br />';
+        echo 'md5 : ' . hash('md5', $token);
+        echo '<br />';
+        echo 'sha1 : ' . hash('sha1', $token);
+        echo '<br />';
+        echo 'sha256 : ' . hash('sha256', $token);
     });
