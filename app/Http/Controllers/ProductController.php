@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class ProductController extends Controller
@@ -20,10 +21,14 @@ class ProductController extends Controller
     
 
     public function productBasicInformation(Request $request){
-        if(!isset($request->productId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی ناکافی است'));
+        $validator = Validator::make($request->all(), [
+            'productId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $productId = $request->productId;
         $product = DB::select(
             "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodOimages, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, P.aparat, PC.category 
@@ -155,112 +160,126 @@ class ProductController extends Controller
     }
 
     public function productDescription(Request $request){
-        if(isset($request->id)){
-            $product = Product::where('id', $request->id);
-            if($product->count() !== 0){
-            $product = $product->first();
-            /*$count = strlen($product->prodDscb)/100;
-            $i = 0;
-            $response = [];
-            echo '{"status":"done","description":[';
-            while($i <= $count){
-                echo '"' . substr($product->prodDscb, $i*100, 100) . '"';
-                $i++;
-                if($i <= $count){
-                    echo ',';
-                }
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
+
+        $product = Product::where('id', $request->id);
+        if($product->count() !== 0){
+        $product = $product->first();
+        /*$count = strlen($product->prodDscb)/100;
+        $i = 0;
+        $response = [];
+        echo '{"status":"done","description":[';
+        while($i <= $count){
+            echo '"' . substr($product->prodDscb, $i*100, 100) . '"';
+            $i++;
+            if($i <= $count){
+                echo ',';
             }
-            echo ']}';*/
-            echo $product->prodDscb;
+        }
+        echo ']}';*/
+        echo $product->prodDscb;
         }else{
             echo json_encode(array('status' => 'failed', 'message' => 'product not found'));
-        }
-        }else{
-            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
         }
     }
 
     public function productFeatures(Request $request){
-        if(isset($request->id)){
-                $productMetas = ProductMeta::where('product_id', $request->id);
-                if($productMetas->count() !== 0){
-                    $productMetas = $productMetas->get();
-                    $features = [];
-                    foreach($productMetas as $meta){
-                        $feature = ProductFeature::where('en_name', substr($meta->key, 2));
-                        if($feature->count() !== 0){
-                            $feature = $feature->first();
-                            array_push($features, ['title' => $feature->name, 'value' => $meta->value]);
-                        }
-                    }
-                    echo json_encode(array('status' => 'done', 'found' => true, 'features' => $features));
-                }else{
-                    echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'this product does not have any feature'));
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
+
+        $productMetas = ProductMeta::where('product_id', $request->id);
+        if($productMetas->count() !== 0){
+            $productMetas = $productMetas->get();
+            $features = [];
+            foreach($productMetas as $meta){
+                $feature = ProductFeature::where('en_name', substr($meta->key, 2));
+                if($feature->count() !== 0){
+                    $feature = $feature->first();
+                    array_push($features, ['title' => $feature->name, 'value' => $meta->value]);
                 }
+            }
+            echo json_encode(array('status' => 'done', 'found' => true, 'features' => $features));
         }else{
-            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
+            echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'this product does not have any feature'));
         }
     }
 
     public function productBreadCrumb(Request $request){
-        if(isset($request->id)){
-            $productId = $request->id;
-            $productCategory = ProductCategory::where('product_id', $productId);
-            if($productCategory->count() !== 0){
-                $productCategory = $productCategory->first();
-                $categoryId = $productCategory->category;
-                $categories = [];
-                do{
-                    $category = Category::where('id', $categoryId)->first();
-                    array_push($categories, array('name' => $category->name, 'url' => $category->url));
-                    $categoryId = $category->parentID;
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
 
-                }while($categoryId !== 0);
-                echo json_encode(array('status' => 'done', 'message' => 'categories successfully found', 'categories' => array_reverse($categories)));
-            }else{
-                echo json_encode(array('status' => 'failed', 'message' => 'category not found'));
-            }
+        $productId = $request->id;
+        $productCategory = ProductCategory::where('product_id', $productId);
+        if($productCategory->count() !== 0){
+            $productCategory = $productCategory->first();
+            $categoryId = $productCategory->category;
+            $categories = [];
+            do{
+                $category = Category::where('id', $categoryId)->first();
+                array_push($categories, array('name' => $category->name, 'url' => $category->url));
+                $categoryId = $category->parentID;
+
+            }while($categoryId !== 0);
+            echo json_encode(array('status' => 'done', 'message' => 'categories successfully found', 'categories' => array_reverse($categories)));
         }else{
-            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
+            echo json_encode(array('status' => 'failed', 'message' => 'category not found'));
         }
     }
 
     public function similarProducts(Request $request){
-        if(isset($request->id)){
-            //$productCategory = ProductCategory::where('product_id', $request->id);
-            $productCategory = DB::select("SELECT category FROM product_category WHERE product_id = $request->id");
-            if(count($productCategory) !== 0){
-                $productCategory = $productCategory[0];
-                $category = DB::select("SELECT C.name FROM category C WHERE C.id = $productCategory->category LIMIT 1");
-                $category = $category[0];
-                //$productCategories = ProductCategory::where('category', $productCategory->category)->where('product_id', '<>', $request->id)->orderBy('id', 'DESC');
-                $products = DB::select("SELECT P.id, PP.id AS packId, PC.category, P.prodName_fa, P.url, P.prodID, PP.price FROM product_category PC INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PP.product_id = P.id
-                    WHERE PC.category = $productCategory->category AND P.id <> $request->id AND P.prodStatus = 1 AND PP.status = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock) ORDER BY prodDate DESC LIMIT 6");
-                if(count($products) !== 0){
-                    $response = [];
-                    foreach($products as $product){
-                        $object = new stdClass();
-                        $object->productId = $product->id;
-                        $object->productPackId = $product->packId;
-                        $object->productName = $product->prodName_fa;
-                        $object->categoryId = $product->category;
-                        $object->categoryName = $category->name;
-                        $object->productUrl = $product->url;
-                        $object->prodID = $product->prodID;
-                        $object->productPrice = $product->price;
-                        array_push($response, $object);
-                    }
-                    //$response = $this->calculateProductsDiscount($response);
-                    $resoponse = DiscountCalculator::calculateProductsDiscount($response);
-                    echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'similar products are successfully found', 'products' => $response));
-                }else{
-                    echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'could not find any available similar products', 'umessage' => 'محصولات مشابه این محصول یافت نشد'));
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
+        
+        $productCategory = DB::select("SELECT category FROM product_category WHERE product_id = $request->id");
+        if(count($productCategory) !== 0){
+            $productCategory = $productCategory[0];
+            $category = DB::select("SELECT C.name FROM category C WHERE C.id = $productCategory->category LIMIT 1");
+            $category = $category[0];
+            $products = DB::select("SELECT P.id, PP.id AS packId, PC.category, P.prodName_fa, P.url, P.prodID, PP.price FROM product_category PC INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PP.product_id = P.id
+                WHERE PC.category = $productCategory->category AND P.id <> $request->id AND P.prodStatus = 1 AND PP.status = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock) ORDER BY prodDate DESC LIMIT 6");
+            if(count($products) !== 0){
+                $response = [];
+                foreach($products as $product){
+                    $object = new stdClass();
+                    $object->productId = $product->id;
+                    $object->productPackId = $product->packId;
+                    $object->productName = $product->prodName_fa;
+                    $object->categoryId = $product->category;
+                    $object->categoryName = $category->name;
+                    $object->productUrl = $product->url;
+                    $object->prodID = $product->prodID;
+                    $object->productPrice = $product->price;
+                    array_push($response, $object);
                 }
+                //$response = $this->calculateProductsDiscount($response);
+                $resoponse = DiscountCalculator::calculateProductsDiscount($response);
+                echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'similar products are successfully found', 'products' => $response));
             }else{
-                echo json_encode(array('status' => 'failed', 'message' => 'product not found', 'umessage' => 'محصول یافت نشد'));
+                echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'could not find any available similar products', 'umessage' => 'محصولات مشابه این محصول یافت نشد'));
             }
         }else{
-            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            echo json_encode(array('status' => 'failed', 'message' => 'product not found', 'umessage' => 'محصول یافت نشد'));
         }
     }
 
@@ -333,10 +352,14 @@ class ProductController extends Controller
     }
 
     public function filterPaginatedNewProducts(Request $request) {
-        if(!isset($request->page)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'page' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $page = $request->page;
 
         $products = DB::select(
@@ -391,10 +414,14 @@ class ProductController extends Controller
     }
 
     public function setProductReminder(Request $request){
-        if(!isset($request->productId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'productId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $userId = $request->userId;
         $productId = $request->productId;
         $user = DB::select("SELECT * FROM users WHERE id = $userId LIMIT 1");
@@ -433,8 +460,11 @@ class ProductController extends Controller
     }
 
     public function productGoogleTagManagerInformation(Request $request){
-        if(!isset($request->productId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'productId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
 

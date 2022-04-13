@@ -10,16 +10,21 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class DiscountController extends Controller
 {
     //@route: /api/user-check-gift-code <--> @middleware: ApiAuthenticationMiddleware
     public function checkGiftCode(Request $request){
-        if(!isset($request->giftCode) || !isset($request->has)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی ناقص است'));
+        $validator = Validator::make($request->all(), [
+            'giftCode' => 'required|string', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+        
         $userId = $request->userId;
         $giftCode = $request->giftCode;
         $has = $request->has;
@@ -63,8 +68,8 @@ class DiscountController extends Controller
         foreach($shoppingCart as $key => $value){
             $productInformation = DB::select(
                 "SELECT P.id, PC.category, PP.price, P.prodWeight 
-                FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id
-                WHERE PP.id = $key AND PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND PP.stock > 0 AND (PP.count * PP.stock <= P.stock) AND $value->count <= PP.stock
+                FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN products_location PL ON PL.pack_id = PP.id 
+                WHERE PP.id = $key AND PP.status = 1 AND P.prodStatus = 1 AND PL.stock > 0 AND PL.pack_stock > 0 
                 LIMIT 1"
             );
             if(count($productInformation) === 0){

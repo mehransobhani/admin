@@ -5,12 +5,21 @@ namespace App\Http\Controllers;
 use App\Classes\DiscountCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class ArtController extends Controller
 {
 
     public function artInformation(Request $request){
+        $validator = Validator::make($request->all(), [
+            'url' => 'required',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->url)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'art not found', 'umessage' => 'آدرس وارد شده یافت نشد'));
             exit();

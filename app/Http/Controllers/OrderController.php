@@ -13,12 +13,14 @@ use App\Classes\DiscountCalculator;
 use GrahamCampbell\ResultType\Result;
 use App\Classes\payment\pasargad\RSAProcessor;
 use App\Classes\payment\pasargad\Pasargad;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class OrderController extends Controller
 {
     /*### without api route ###*/
     public function getUserOrderProducts (Request $request){
+        /*
         if(Auth::check()){
             echo json_encode(array('status' => 'failed', 'message' => 'user is not authenticated'));
             exit();
@@ -63,6 +65,7 @@ class OrderController extends Controller
         }else{
             echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'this order does not have any items', 'items' => '[]'));
         }
+        */
     }
 
     /*### wihtout api route ###*/
@@ -90,6 +93,14 @@ class OrderController extends Controller
 
     // @route: /api/user-order-details <--> @middleware: UserAuthenticationMiddleware
     public function getOrderDetails(Request $request){
+        $validator = Validator::make($request->all(), [
+            'orderId' => 'required|numeric', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
+
         $userId = $request->userId;
         $orderId = $request->orderId;
         $user = DB::select("SELECT username FROM users WHERE id = $userId LIMIT 1");
@@ -165,11 +176,17 @@ class OrderController extends Controller
 
     // @route: /api/user-confirm-order <--> @middleware: UserAuthenticationMiddleware
     public function confirmOrder(Request $request){
-        $time = time();
-        if(!isset($request->giftCodes) || !isset($request->userWallet)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'giftCodes' => 'array',
+            'userWallet' => 'numeric', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
+        $time = time();
+        
         $userId = $request->userId;
         $codes = $request->giftCodes;
         $useUserStock = $request->userWallet;
@@ -231,7 +248,7 @@ class OrderController extends Controller
                 "SELECT P.id, PP.id AS packId, P.buyPrice, P.prodName_fa, P.type, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PL.stock > 0 AND PL.pack_stock > 0 AND (PL.pack_stock * PP.count <= PL.stock) AND PP.status = 1 AND P.prodStatus = 1 AND PL.pack_id = $key AND P.stock > 0 AND PP.stock > 0 AND (P.stock >= PP.stock * PP.count)"
+                WHERE PL.stock > 0 AND PL.pack_stock > 0 AND (PL.pack_stock * PP.count <= PL.stock) AND PP.status = 1 AND P.prodStatus = 1 AND PL.pack_id = $key AND P.stock > 0 AND PP.stock > 0 "
             );
             if(count($productInfo) !== 0){
                 $productInfo = $productInfo[0];
@@ -451,7 +468,7 @@ class OrderController extends Controller
         $orderReferenceIdUpdateResult = DB::update(
             "UPDATE orders 
             SET orderReferenceID = $orderReferenceId 
-            WHERE id = $orderId"
+            WHERE id = $orderId "
         );
         if(!$orderReferenceIdUpdateResult){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'could not update the orderReferenceId', 'umessage' => 'خطا در بروزرسانی کد مرجع'));
@@ -554,7 +571,8 @@ class OrderController extends Controller
                 )"
             );
         }
-        if(($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser === 0){
+        
+        if(($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser == 0){
             $orderItems = DB::select(
                 "SELECT * FROM order_items WHERE order_id = $orderId"
             );
@@ -668,11 +686,11 @@ class OrderController extends Controller
                 'RedirectAddress' => 'https://honari.com/newtest/payment-result/order/pasargad',
                 'Timestamp' => date('Y/m/d H:i:s'),
             ];
-            $pasargad = new Pasargad();
+            $pasargad = new Pasargad();         
             $result = $pasargad->createPaymentToken($parameters);
-            if($result['status'] === 'failed'){
+            if($result['status'] === 'failed'){ 
                 echo json_encode(array('status' => 'failed', 'source' => 'Bank Class', 'message' => $result['message'], 'umessage' => $result['umessage']));
-                exit();
+                exit();                         
             }else if($result['status'] === 'done'){
                 //'stage' => 'payment', 'message' => 'bank response was successful', 'bank' => 'pasargad', 'token' => $response->Token, 'bankPaymentLink' => 'https://pep.shaparak.ir/payment.aspx?n=' . $response->Token);
                 echo json_encode(array('status' => 'done', 'stage' => 'payment', 'message' => $result['message'], 'bank' => 'pasargad', 'token' => $result['token'], 'bankPaymentLink' => $result['bankPaymentLink']));
@@ -807,10 +825,14 @@ class OrderController extends Controller
 
     // @route: /api/user-cancel-order <--> @middleware: UserAuthenticationMiddleware
     public function cancelOrder(Request $request){
-        if(!isset($request->orderId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'orderId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $userId = $request->userId;
         $orderId = $request->orderId;
         $user = DB::select("SELECT * FROM users WHERE id = $userId LIMIT 1");

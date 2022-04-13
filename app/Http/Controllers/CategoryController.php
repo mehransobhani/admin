@@ -9,11 +9,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class CategoryController extends Controller
 {
     public function subCategories(Request $request){
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if($request->id){
             $categories = Category::where('parentID', $request->id)->where('hide', 0);
             if($categories->count() !== 0){
@@ -32,6 +41,14 @@ class CategoryController extends Controller
     }
 
     public function rootCategorySixNewProducts(Request $request){
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if($request->id){
             $category = Category::where('id', $request->id);
             if($category->count() !== 0){
@@ -68,14 +85,23 @@ class CategoryController extends Controller
     }
 
     public function filterPaginatedCategoryProducts (Request $request){
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric', 
+            'order' => 'required|string'
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(isset($request->id) && isset($request->order)){
             $category = Category::where('id', $request->id);
             if($category->count() !== 0){
                 $category = $category->first();
                 $order = $request->order;
                 $onlyAvailableProducts = $request->onlyAvailableProducts;
-                $having = " AND PL.stock > 0 AND PL.pack_stock > 0 AND P.prodStatus = 1 AND P.stock > 0 " ; //" AND PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock)";
-                $finished = " AND P.prodStatus = 1 AND ((P.id NOT IN (SELECT DISTINCT PLL.product_id FROM products_location PLL ) OR (SELECT PLLL.id FROM products_location PLLL WHERE PLLL.product_id = P.id AND PLLL.pack_stock <> 0) IS NULL)) "; //"AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
+                $having = " AND PL.stock > 0 AND PL.pack_stock > 0 AND PL.anbar_id = 1 AND P.prodStatus = 1 AND P.stock > 0 " ; //" AND PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock)";
+                $finished = " AND P.prodStatus = 1  AND ((P.id NOT IN (SELECT DISTINCT PLL.product_id FROM products_location PLL ) OR (SELECT PLLL.id FROM products_location PLLL WHERE PLLL.product_id = P.id AND PLLL.pack_stock <> 0) IS NULL)) "; //"AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
                 $name = '';
                 $minPrice = '';
                 $maxPrice = '';
@@ -102,10 +128,10 @@ class CategoryController extends Controller
 
                 /* P.id, P.prodName_fa, P.prodID, P.url, PP.price, PP.status */
 
-                $queryHaving = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_category PPC ON PPC.product_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
-                    WHERE C.id = $request->id OR C.parentID = $request->id)" . $having . $name . $minPrice . $maxPrice . " AND PP.status = 1 " . $order ;
-                $queryFinished = "SELECT P.id, 0 AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, 0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 0 AS `count`, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
-                    WHERE C.id = $request->id OR C.parentID = $request->id)" . $finished . $name . $minPrice . $maxPrice . " AND PP.status = 1 " . $order;
+                $queryHaving = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_category PPC ON PPC.product_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                    WHERE C.id = $request->id OR C.parentID = $request->id) " . $having . $name . $minPrice . $maxPrice . " AND PPC.category = $request->id AND PP.status = 1 " . $order ; 
+                $queryFinished = "SELECT P.id, 0 AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, 0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 0 AS `count`, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id  
+                    WHERE C.id = $request->id OR C.parentID = $request->id ) " . $finished . $name . $minPrice . $maxPrice . " AND PPC.category = $request->id AND PP.status = 1 " . $order;
                 $havingProducts = DB::select($queryHaving);
                 if($onlyAvailableProducts === 0){
                     $finishedProducts = DB::select($queryFinished);
@@ -205,18 +231,15 @@ class CategoryController extends Controller
         }
     }
 
-    public function fpage(Request $request){
-        /*DB::select(
-            "SELECT * 
-            FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id 
-            WHERE P.id IN (SELECT PC.product_id 
-                            FROM product_catgory 
-                            WHERE category = 622) 
-                AND P.stock >= 0"
-        );*/
-    }
-
     public function categoryFilters(Request $request){
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(isset($request->id)){
             $category = DB::select("SELECT feature_group_id FROM category WHERE id = $request->id LIMIT 1");
             if(count($category) !== 0){
@@ -252,6 +275,14 @@ class CategoryController extends Controller
     }
 
     public function categoryBreadCrumb(Request $request){
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(isset($request->id)){
             $categoryId = $request->id;
             $c = Category::where('id', $categoryId);
@@ -275,28 +306,6 @@ class CategoryController extends Controller
     }
 
     public function topSixBestSellerCategories(Request $request){
-        /*$categories = DB::select(
-            "SELECT COUNT(RESULT.categoryId) AS `count`, 
-                RESULT.categoryId, 
-                RESULT.categoryName, 
-                RESULT.categoryUrl 
-            FROM (
-                SELECT O.id as orderId, 
-                    C.id AS categoryId,
-                    C.name AS categoryName, 
-                    C.url AS categoryUrl 
-                FROM orders O 
-                INNER JOIN order_items OI ON O.id = OI.order_id 
-                INNER JOIN product_category PC ON OI.product_id = PC.product_id 
-                INNER JOIN category C ON PC.category = C.id 
-                WHERE O.stat = 9 
-                ORDER BY O.id DESC 
-                LIMIT 60
-                ) AS RESULT  
-            GROUP BY RESULT.categoryId, RESULT.categoryName, RESULT.categoryUrl 
-            ORDER BY COUNT(RESULT.categoryId) DESC 
-            LIMIT 4"
-        );*/
         $categories = DB::select(
             "SELECT COUNT(RESULT.categoryId) AS `count`, 
                 RESULT.categoryId, 

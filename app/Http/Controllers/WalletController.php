@@ -12,12 +12,22 @@ use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
 use App\Classes\payment\pasargad\Pasargad;
 use DateTime;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class WalletController extends Controller
 {
     //@route: /api/user-add-withdrawal-request <--> @middleware: ApiAuthenticationMiddleware
     public function addUserWithdrawalRequest(Request $request){
+        $validator = Validator::make($request->all(), [
+            'cardNumber' => 'required|string', 
+            'cardOwner' => 'required|string', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
+        
         $userId = $request->userId;
         $user = DB::select("SELECT * FROM users WHERE id = $userId");
         $user = $user[0];
@@ -151,10 +161,14 @@ class WalletController extends Controller
 
     //@route: /api/user-charge-wallet <--> @middleware: ApiAuthenticationMiddleware
     public function chargeWallet(Request $request){
-        if(!isset($request->price)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'price' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $price = intval($request->price);
         $userId = $request->userId;
         if($price < 100){

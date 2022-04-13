@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
 use Exception;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class UserController extends Controller
@@ -146,16 +147,20 @@ class UserController extends Controller
 
     /*### without api route ###*/
     public function checkUser(Request $request){
-        if(isset($request->username)){
-            $username = $request->username;
-            $user = DB::select("SELECT id FROM users WHERE username = $username");
-            if(count($user) !== 0){
-                $user = $user[0];
-            }else{
-                echo json_encode(array('status' => 'done', 'new' => true, 'message' => 'user is new'));
-            }
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
+
+        $username = $request->username;
+        $user = DB::select("SELECT id FROM users WHERE username = $username");
+        if(count($user) !== 0){
+            $user = $user[0];
         }else{
-            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter'));
+            echo json_encode(array('status' => 'done', 'new' => true, 'message' => 'user is new'));
         }
     }
 

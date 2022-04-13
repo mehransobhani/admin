@@ -8,6 +8,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class SearchController extends Controller
@@ -18,6 +19,14 @@ class SearchController extends Controller
     private static $PRODUCTS_API_TOKEN = '21bb3b6e-0f96-4718-8d6c-8f03a538927e';
     private static $PRODUCTS_AND_COURSES_API_TOKEN = 'a880cb7b-1194-416f-94cc-87b6db4fb450';
     public function getAutocomplete(Request $request){
+        $validator = Validator::make($request->all(), [
+            'input' => 'required|string',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
+            exit();
+        }
+
         $query = $request->input;
         $autoCompleteUrl = self::$BASE_URL . self::$AUTO_COMPLETE_URL . '/?apiToken=' . self::$PRODUCTS_AND_COURSES_API_TOKEN . '&query=' . urlencode($query);
         $ch = curl_init($autoCompleteUrl);
@@ -43,10 +52,16 @@ class SearchController extends Controller
     }
 
     public function searchWithCategoryResults(Request $request){
-        if(!isset($request->category) || !isset($request->facets) || !isset($request->page)){
-            echo json_encode(array('status' => 'failed', 'message' => 'not enough parameter', 'umessage' => 'ورودی ها کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'category' => 'required|string', 
+            'facets' => 'array', 
+            'page' => 'required|numeric', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $category = trim($request->category);
         $facets = $request->facets;
         $page = $request->page;
@@ -134,17 +149,17 @@ class SearchController extends Controller
     }
 
     public function searchProductsResult(Request $request){
-        if(!isset($request->category) || !isset($request->page)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'category' => 'required|string', 
+            'page' => 'required|numeric', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
-
-        //$query = urlencode($request->category->get('query'));
         
         $query = urlencode($request->category);
         $page = $request->page;
-        
-        //$query = urlencode($query);
 
         $url = 'http://search.honari.com/api/v1/management/search/search/?apiToken=21bb3b6e-0f96-4718-8d6c-8f03a538927e&query=' . $query . '&page=' . $page . '&size=12&sort=has_stock';
         $ch = curl_init($url);

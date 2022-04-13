@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
 use App\Models\User;
+use Illuminate\Support\Facades\Validator;
 use PhpParser\JsonDecoder;
 use stdClass;
 
@@ -338,6 +339,15 @@ class CartController extends Controller
     //@route: /api/user-increase-cart-by-one <--> @middleware: ApiAuthenticationMiddleware
     public function increaseCartByOne(Request $request){
         $userId = $request->userId;
+
+        $validator = Validator::make($request->all(), [
+            'productPackId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->productPackId)){
             echo json_encode(array('status' => 'failed', 'source' => 'c' ,'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
@@ -428,6 +438,15 @@ class CartController extends Controller
     //@route: /api/user-decrease-cart-by-one <--> @middleware: ApiAuthenticationMiddleware
     public function decreaseCartByOne(Request $request){
         $userId = $request->userId;
+
+        $validator = Validator::make($request->all(), [
+            'productPackId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->productPackId)){
             echo json_encode(array('status' => 'failed', 'source' => 'c' ,'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نمیباشد'));
             exit();
@@ -519,6 +538,13 @@ class CartController extends Controller
     //@route: /api/user-remove-from-cart <--> @middleware: ApiAuthenticationMiddleware
     public function removeFromCart(Request $request){
         $userId = $request->userId;
+        $validator = Validator::make($request->all(), [
+            'productPackId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
         if(!isset($request->productPackId)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی اشتباه است'));
             exit();
@@ -593,6 +619,14 @@ class CartController extends Controller
 
     //@route: /api/guest-cart <--> @middleware: -----
     public function guestCart(Request $request){
+        $validator = Validator::make($request->all(), [
+            'cart' => 'required|string',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->cart)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough information', 'umessage' => 'اطلاعات کافی ارسال نشده است'));
             exit();
@@ -673,6 +707,14 @@ class CartController extends Controller
 
     //@route: /api/guest-check-cart-changes <--> @middleware: -----
     public function checkGuestCartChanges(Request $request){
+        $validator = Validator::make($request->all(), [
+            'productPackId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->productPackId) || !isset($request->count)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی ناقص است'));
             exit();
@@ -724,6 +766,15 @@ class CartController extends Controller
 
     //@route: /api/user-add-to-cart <--> @middleware: ApiAuthenticationMiddleware
     public function addToCart(Request $request){
+        $validator = Validator::make($request->all(), [
+            'productPackId' => 'required|numeric', 
+            'productPackCount' => 'required|numeric', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->productPackId) || !isset($request->productPackCount)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
@@ -844,6 +895,15 @@ class CartController extends Controller
 
     //@route: /api/guest-add-to-cart <--> @middleware: -----
     public function guestAddToCart(Request $request){
+        $validator = Validator::make($request->all(), [
+            'productPackId' => 'required|numeric', 
+            'productPackCount' => 'required|numeric', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->productPackId) || !isset($request->productPackCount)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
@@ -1005,15 +1065,14 @@ class CartController extends Controller
         foreach($cart as $c){
             $packId = $c['id'];
             $count = $c['count'];
-            
-            $productInformation = DB::select(
+            $productInformation = DB::select( 
                 "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P 
                 INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PP.id = PL.pack_id INNER JOIN product_category PC ON P.id = PC.product_id 
                 WHERE PL.stock > 0 AND PL.pack_stock > 0 AND (PL.pack_stock * PP.count <= PL.stock ) AND PL.pack_id = $packId AND PP.status = 1 AND P.prodStatus = 1 AND PP.stock > 0 AND P.stock > 0 AND (PP.count * PP.stock <= P.stock)"
             );
             if(count($productInformation) === 0){
-                continue; // If product was not available, do not add it to users cart
+                continue; //If product was not available, do not add it to users cart
             }
 
             $productInformation = $productInformation[0];

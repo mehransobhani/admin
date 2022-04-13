@@ -9,11 +9,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class CommentController extends Controller
 {
     public function productComments(Request $request){
+        $validator = Validator::make($request->all(), [
+            'productId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->productId)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
@@ -77,10 +86,20 @@ class CommentController extends Controller
     }
 
     public function replyToComment(Request $request){
-        if(!isset($request->commentId) || !isset($request->reply) || !isset($request->productId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'commentId' => 'required|numeric', 
+            'reply' => 'required|string', 
+            'productId' => 'required|numeric'
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
             exit();
         }
+
+        /*if(!isset($request->commentId) || !isset($request->reply) || !isset($request->productId)){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
+            exit();
+        }*/
         $userId = $request->userId;
         $commentId = $request->commentId;
         $reply = $request->reply;
@@ -112,6 +131,15 @@ class CommentController extends Controller
     }
 
     public function addComment(Request $request){
+        $validator = Validator::make($request->all(), [
+            'productId' => 'required|numeric', 
+            'comment' => 'required|string', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->productId) || !isset($request->comment)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'messasge' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();

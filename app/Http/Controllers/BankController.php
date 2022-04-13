@@ -221,7 +221,7 @@ class BankController extends Controller
                     INNER JOIN category C INNER JOIN C.id = PC.category 
                 WHERE OI.order_id IN (
                     SELECT id FROM order_items WHERE order_id = $orderId 
-                ) "
+                ) " 
             ); 
             foreach($orderItems AS $info){ 
                 $productItem = []; 
@@ -237,8 +237,7 @@ class BankController extends Controller
 
                 array_push($information['products'], $productItem); 
                 array_push($information['categories'], $categoryItem);  
-            } 
-            
+            }
         } 
         echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'new'=> true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber, 'information' => $information));
         exit();

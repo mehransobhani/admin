@@ -8,10 +8,19 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class BannerController extends Controller
 {
     public function categoryBanners(Request $request){
+        $validator = Validator::make($request->all(), [
+            'id' => 'required',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
+
         if(!isset($request->id)){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'ورودی کافی نیست'));
             exit();
@@ -76,6 +85,13 @@ class BannerController extends Controller
     }
 
     public function topSixBestsellerSimilarProducts(Request $request){
+        $validator = Validator::make($request->all(), [
+            'id' => 'required',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'مقادیر ورودی صحیح نیست'));
+            exit();
+        }
         if(isset($request->id)){
             $category = Category::where('id', $request->id);
             if($category->count() !== 0){

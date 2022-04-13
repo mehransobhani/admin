@@ -10,6 +10,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use App\Classes\DiscountCalculator;
 use Exception;
+use Illuminate\Support\Facades\Validator;
 use stdClass;
 
 class DeliveryServiceController extends Controller
@@ -518,10 +519,14 @@ class DeliveryServiceController extends Controller
 
     //@route: /api/user-delivery-service-work-times <--> @middleware: ApiAuthenticationMiddleware
     public function getDeliveryServiceWorkTimes (Request $request){
-        if(!isset($request->deliveryServiceId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameters', 'umessage' => 'اطلاعات دریافتی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'deliveryServiceId' => 'required|numeric',
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $deliveryServiceId = $request->deliveryServiceId;
         if($deliveryServiceId != 11 && $deliveryServiceId != 12){
             echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'wrong delivery service', 'umessage' => 'سرویس ارسال انتخابی غلط است'));
@@ -590,10 +595,16 @@ class DeliveryServiceController extends Controller
 
     //@route: /api/user-set-delivery-service-temporary-information <--> @middleware: ApiAuthenticationMiddleware
     public function setDeliveryServiceTemporaryInformation(Request $request){
-        if(!isset($request->serviceId) || !isset($request->workTime) || !isset($request->workTimeId)){
-            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'not enough parameter', 'umessage' => 'اطلاعات ورودی کافی نیست'));
+        $validator = Validator::make($request->all(), [
+            'serviceId' => 'required|numeric', 
+            'workTime' => 'required|numeric', 
+            'workTimeId' => 'required|numeric', 
+        ]);
+        if($validator->fails()){
+            echo json_encode(array('status' => 'failed', 'source' => 'v', 'message' => 'argument validation failed', 'umessage' => 'خطا در دریافت مقادیر ورودی'));
             exit();
         }
+
         $userId = $request->userId;
         $serviceId = $request->serviceId;
         $workTime = $request->workTime;
