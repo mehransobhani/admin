@@ -229,7 +229,7 @@ class HomeController extends Controller
                 }while($categoryId !== 0 && $allowContinue);
             }
 
-            echo json_encode(array('status' => 'done', 'found' => true, 'type' => 'product', 'url' => $r, 'id' => $product->id, 'prodID' => $product->prodID, 'name' => $product->prodName_fa, 'information' => $productObject, 'breadcrumb' => $breadcrumb, 'similarProducts' => $similarProducts, 'description' => $product->prodDscb, 'features' => $features));
+            echo json_encode(array('status' => 'done', 'found' => true, 'type' => 'product', 'url' => $r, 'id' => $product->id, 'prodID' => $product->prodID, 'name' => $product->prodName_fa, 'information' => $productObject, 'breadcrumb' => array_reverse($breadcrumb), 'similarProducts' => $similarProducts, 'description' => $product->prodDscb, 'features' => $features));
         }else{
             $found = false;
             $category = DB::select(
