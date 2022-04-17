@@ -363,13 +363,13 @@ class ProductController extends Controller
         $page = $request->page;
 
         $products = DB::select(
-            "(  SELECT 1 AS sort, P.id AS productId, PP.id AS productPackId, P.prodName_fa AS productName, P.prodID, P.url AS productUrl, P.prodUnite AS productUnitName, PP.stock AS maxCount, PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS productLabel, PP.count AS productUnitCount, P.prodDate,  C.id AS categoryId, C.name AS categoryName  
-                FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id
-                WHERE P.prodStatus = 1 AND P.stock > 0 AND PP.status = 1 AND PP.stock > 0 AND (PP.count * PP.stock) <= P.stock
+            "(  SELECT 1 AS sort, P.id AS productId, PL.pack_id AS productPackId, P.prodName_fa AS productName, P.prodID, P.url AS productUrl, P.prodUnite AS productUnitName, PL.pack_stock AS maxCount, PP.price AS productPrice, PP.base_price AS productBasePrice, PP.label AS productLabel, PP.count AS productUnitCount, P.prodDate,  C.id AS categoryId, C.name AS categoryName  
+                FROM products P INNER JOIN products_location PL ON P.id = PL.product_id  INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id 
+                WHERE P.prodStatus = 1 AND P.stock > 0 AND PP.status = 1 AND PP.stock > 0 AND (PP.count * PL.pack_stock) <= PL.stock AND PL.stock > 0 AND PL.pack_stock > 0 
              ) UNION (
                 SELECT 2 AS sort, P.id AS productId, PP.id AS productPackId, P.prodName_fa AS productName, P.prodID, P.url AS productUrl, P.prodUnite AS productUnitName, -1 AS maxCount, -1 AS productPrice, -1 AS productBasePrice, PP.label AS productLabel, PP.count AS productUnitCount, P.prodDate,  C.id AS categoryId, C.name AS categoryName  
-                FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id
-                WHERE P.prodStatus = 1 AND (P.stock = 0 OR PP.status <> 1 OR PP.stock = 0 OR (PP.count * PP.stock) > P.stock ) 
+                FROM products P INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id  
+                WHERE P.prodStatus = 1 AND (P.stock = 0 OR PP.status <> 1 OR PP.stock = 0 OR (PP.count * PL.pack_stock) > PL.stock OR PL.stock <= 0 OR PL.pack_stock <= 0 ) 
              )
              ORDER BY sort ASC, prodDate DESC, productId DESC "
         );

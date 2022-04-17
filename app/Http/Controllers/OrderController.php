@@ -577,39 +577,41 @@ class OrderController extends Controller
                 "SELECT * FROM order_items WHERE order_id = $orderId"
             );
             foreach($orderItems as $orderItem){
-                $this->manipulateProductAndLog(
-                    $orderItem->product_id, 
-                    $user->username, 
-                    $userId, 
-                    (-1 * $orderItem->count * $orderItem->pack_count), 
-                    $orderId, 
-                    5, 
-                    'کاهش موجودی - ثبت سفارش - پرداخت از کیف پول',
-                    0,
-                    "NULL",
-                    "NULL",
-                    (-1 * $orderItem->count * $orderItem->pack_count)
-                );
-                $this->manipulatePackAndLog(
-                    $orderItem->pack_id,
-                    $userId,
-                    $orderItem->count,
-                    $orderItem->pack_count,
-                    2,
-                    'کاهش موجودی به دلیل ثبت سفارش مشتری', 
-                    $orderId, 
-                    "NULL"
-                );
-                $this->manipulateProductLocationAndLog(
-                    $orderItem->product_id, 
-                    $orderItem->pack_id, 
-                    $orderItem->count, 
-                    $orderItem->pack_count, 
-                    $userId, 
-                    1, 
-                    NULL, 
-                    5 
-                );
+                if($orderItem->bundle_id == 0){
+                    $this->manipulateProductAndLog(
+                        $orderItem->product_id, 
+                        $user->username, 
+                        $userId, 
+                        (-1 * $orderItem->count * $orderItem->pack_count), 
+                        $orderId, 
+                        5, 
+                        'کاهش موجودی - ثبت سفارش - پرداخت از کیف پول',
+                        0,
+                        "NULL",
+                        "NULL",
+                        (-1 * $orderItem->count * $orderItem->pack_count)
+                    );
+                    $this->manipulatePackAndLog(
+                        $orderItem->pack_id,
+                        $userId,
+                        $orderItem->count,
+                        $orderItem->pack_count,
+                        2,
+                        'کاهش موجودی به دلیل ثبت سفارش مشتری', 
+                        $orderId, 
+                        "NULL"
+                    );
+                    $this->manipulateProductLocationAndLog(
+                        $orderItem->product_id, 
+                        $orderItem->pack_id, 
+                        $orderItem->count, 
+                        $orderItem->pack_count, 
+                        $userId, 
+                        1, 
+                        NULL, 
+                        5 
+                    );
+                }
             }
 
             $this->updateOrderStatus($orderId, 1);
@@ -856,50 +858,52 @@ class OrderController extends Controller
         $orderItems = DB::select("SELECT * FROM order_items WHERE order_id = $orderId");
         foreach($orderItems as $orderItem){    
             $productDescription =  'افزایش موجودی به دلیل کنسل شدن سفارش توسط کاربر';
-            $this->manipulateProductAndLog(
-                $orderItem->product_id, 
-                $user->username, 
-                $userId, 
-                ($orderItem->count * $orderItem->pack_count), 
-                $orderId, 
-                15, 
-                $productDescription,
-                0,
-                "NULL",
-                "NULL",
-                ($orderItem->count * $orderItem->pack_count)
-            );
-            $this->manipulatePackAndLog(
-                $orderItem->pack_id,
-                $userId,
-                $orderItem->count,
-                $orderItem->pack_count,
-                5,
-                'افزایش موجودی به دلیل کنسلی سفارش', 
-                $orderId, 
-                "NULL"
-            );
-            $this->manipulateProductLocationAndLog(
-                $orderItem->product_id, 
-                $orderItem->pack_id, 
-                $orderItem->count, 
-                $orderItem->pack_count, 
-                $userId, 
-                NULL, 
-                1, 
-                6 
-            );
-            $this->insertProductReturns(
-                $orderItem->product_id, 
-                '', 
-                $orderId,
-                0,
-                0,
-                'کنسل شدن سفارش توسط کاربر',
-                $user->username,
-                "NULL",
-                "NULL"
-            );
+            if($orderItem->bundle_id == 0){
+                $this->manipulateProductAndLog(
+                    $orderItem->product_id, 
+                    $user->username, 
+                    $userId, 
+                    ($orderItem->count * $orderItem->pack_count), 
+                    $orderId, 
+                    15, 
+                    $productDescription,
+                    0,
+                    "NULL",
+                    "NULL",
+                    ($orderItem->count * $orderItem->pack_count)
+                );
+                $this->manipulatePackAndLog(
+                    $orderItem->pack_id,
+                    $userId,
+                    $orderItem->count,
+                    $orderItem->pack_count,
+                    5,
+                    'افزایش موجودی به دلیل کنسلی سفارش', 
+                    $orderId, 
+                    "NULL"
+                );
+                $this->manipulateProductLocationAndLog(
+                    $orderItem->product_id, 
+                    $orderItem->pack_id, 
+                    $orderItem->count, 
+                    $orderItem->pack_count, 
+                    $userId, 
+                    NULL, 
+                    1, 
+                    6 
+                );
+                $this->insertProductReturns(
+                    $orderItem->product_id, 
+                    '', 
+                    $orderId,
+                    0,
+                    0,
+                    'کنسل شدن سفارش توسط کاربر',
+                    $user->username,
+                    "NULL",
+                    "NULL"
+                );
+            }
         }
         $this->insertOrdersLog($orderId, $user->username, 'cancel');
         $this->updateOrderStatus($orderId, 7);

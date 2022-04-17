@@ -150,39 +150,41 @@ class BankController extends Controller
         $packDescripiton = "کاهش موجودی به دلیل ثبت سفارش مشتری";
 
         foreach($orderItems as $orderItem){
-            $orderController->manipulateProductAndLog(
-                $orderItem->product_id, 
-                $user->username, 
-                $userId, 
-                (-1 * $orderItem->count * $orderItem->pack_count), 
-                $orderId, 
-                6, 
-                $productDescription,
-                0,
-                "NULL",
-                "NULL",
-                (-1 * $orderItem->count * $orderItem->pack_count)
-            );
-            $orderController->manipulatePackAndLog(
-                $orderItem->pack_id,
-                $userId,
-                $orderItem->count, $orderItem->pack_count,
-                2,
-                $packDescripiton,
-                $orderId, 
-                "NULL"
-            );
-            
-            $orderController->manipulateProductLocationAndLog(
-                $orderItem->product_id,
-                $orderItem->pack_id,
-                $orderItem->count, 
-                $orderItem->pack_count,
-                $userId, 
-                1,
-                NULL, 
-                5
-            );
+            if($orderItem->bundle_id == 0){
+                $orderController->manipulateProductAndLog(
+                    $orderItem->product_id, 
+                    $user->username, 
+                    $userId, 
+                    (-1 * $orderItem->count * $orderItem->pack_count), 
+                    $orderId, 
+                    6, 
+                    $productDescription,
+                    0,
+                    "NULL",
+                    "NULL",
+                    (-1 * $orderItem->count * $orderItem->pack_count)
+                );
+                $orderController->manipulatePackAndLog(
+                    $orderItem->pack_id,
+                    $userId,
+                    $orderItem->count, $orderItem->pack_count,
+                    2,
+                    $packDescripiton,
+                    $orderId, 
+                    "NULL"
+                );
+                
+                $orderController->manipulateProductLocationAndLog(
+                    $orderItem->product_id,
+                    $orderItem->pack_id,
+                    $orderItem->count, 
+                    $orderItem->pack_count,
+                    $userId, 
+                    1,
+                    NULL, 
+                    5
+                );
+            }
         }
         $orderController->updateOrderStatus($orderId, 1);
         if($order->used_stock_user !== 0){
