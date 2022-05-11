@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Classes\payment\pasargad\RSAProcessor;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Date;
 
 /*
@@ -296,3 +297,16 @@ Route::get('/test-curl', function(){
             $response = $response->courses;
         }
     });
+
+//Route::get('/sitemap.xml', function(){
+//    return view('rootSitemap');
+//});
+
+Route::get('/sitemap.xml',  [SitemapController::class, 'rootSitemap']);
+Route::get('/sitemap/arts.xml',[SitemapController::class,'artSitemap']);
+Route::get('/sitemap/classes.xml',[SitemapController::class, 'classSitemap']);
+Route::get('/sitemap/arts_stepbystep.xml',[SitemapController::class, 'artsStepByStep']);
+Route::get('/sitemap/stepbystep.xml', [SitemapController::class, 'stepByStep']);
+Route::get('/sitemap/product{id}.xml', [SitemapController::class, 'productSiteMap']);
+Route::get('/sitemap/categories.xml', [SitemapController::class, 'categories']);
+Route::get('/sitemap/primary.xml', [SitemapController::class, 'primary']);
