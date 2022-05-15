@@ -198,7 +198,7 @@ class BankController extends Controller
             SET active = 0 
             WHERE user_id = $userId"
         );
-        $orderInformatin = DB::select("SELECT total_items, shipping_cost, shipping_price_off, `off, buy_price` FROM orders WHERE id = $orderId LIMIT 1");
+        $orderInformatin = DB::select("SELECT total_items, shipping_cost, shipping_price_off, `off`, buy_price FROM orders WHERE id = $orderId LIMIT 1");
         if(count($orderInformatin) !== 0){
             $orderInformatin = $orderInformatin[0];
             $information = [];

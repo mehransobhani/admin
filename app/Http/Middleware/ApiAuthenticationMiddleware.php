@@ -62,7 +62,7 @@ class ApiAuthenticationMiddleware
                 DB::insert(
                     "INSERT INTO users (
                         username, userlevel, 
-                        email, hubspot_email, 
+                        email, hubspot_mail, 
                         `timestamp`, `name`, 
                         profilepic, mobile, 
                         telephone, postalCode, 
@@ -78,7 +78,7 @@ class ApiAuthenticationMiddleware
                         '$userObject->username', 0,
                         '$userObject->email', '$userObject->hubspot_mail' ,
                         $date, '$userObject->name', 
-                        '', '$userObject->mobile', 
+                        '', '$userObject->username', 
                         '', '', 
                         '', 0, 
                         0, '$userObject->role', 
@@ -90,7 +90,7 @@ class ApiAuthenticationMiddleware
                         '', $userObject->id
                     ) "
                 );
-                $user = DB::select("SELECT * FROM uses WHERE ex_user_id = $userObject->id LIMIT 1");
+                $user = DB::select("SELECT * FROM users WHERE ex_user_id = $userObject->id LIMIT 1");
                 if(count($user) === 0){
                     echo json_encode(array('status' => 'failed', 'source' => 'm', 'message' => 'could not create the new user', 'umessage' => 'خطا در ایجاد کاربر جدید'));
                     exit();

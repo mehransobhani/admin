@@ -483,9 +483,9 @@ class DeliveryServiceController extends Controller
         $currentDayOfWeek = intval(jdate('w', $currentTime, '', '', 'en'));
         $start = $currentTime - ($currentSecond + (60 * $currentMinute) + (3600 * $currentHour));
         $start -= ($currentDayOfWeek * 86400);
-//        $start += 86400;
+        $start += 86400;
         //echo 'start : ' . $start . ' and start : ' . jdate('Y-m-d H:i:s', $start);
-	$foundDatesInformation = [];
+        $foundDatesInformation = [];
         $found = false;
         for($k = 0; $k <= 2; $k++){
             if($found){
@@ -493,9 +493,9 @@ class DeliveryServiceController extends Controller
             }
             for($a=0; $a<sizeof($allTimes); $a++){
                 $wt = $start + (($k * 7* 86400) + ($allTimes[$a]->day * 86400) + $allTimes[$a]->type_house);
-                //if($wt >= 1647894600){
-                //    $wt -= 3600;
-                //}
+                if($wt >= 1647894600){
+                    $wt -= 3600;
+                }
                 $wm = $allTimes[$a]->max_item_count;
                 $we = $allTimes[$a]->expire_time;
                 if(jdate('m', $wt, '', '', 'en') == '12' && jdate('d', $wt, '', '', 'en') == '29'){

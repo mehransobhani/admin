@@ -142,7 +142,7 @@ class DiscountCalculator{
                                         }
                                         $rps[$i] += $rp;
                                     }else{
-                                        $productStock = DB::select("SELECT product_stock AS stock FROM products_location WHERE product_id = $product->productId ORDER BY id DESC LIMIT 1 ");
+                                        $productStock = DB::select("SELECT pack_stock AS stock FROM products_location WHERE product_id = $product->productId ORDER BY id DESC LIMIT 1 ");
                                         if(count($productStock) !== 0){
                                             $productStock = $productStock[0];
                                             if($discountDependencyInformation->final_stock < $productStock->stock){
@@ -359,7 +359,7 @@ class DiscountCalculator{
                 FROM orders 
                 WHERE user_id = $userId"
             );
-            if(count($userPreviousOrders) !== 0){
+            if(count($userPreviousOrders) != 0){
                 $responseObject->allowed = false;
                 $responseObject->discountPrice = 0;
                 $responseObject->type = '';
@@ -1129,7 +1129,8 @@ class DiscountCalculator{
                     $products[$i]->discountedPrice = $products[$i]->productPrice - $dp;
                     $products[$i]->discountPercent = ceil(($dp / $products[$i]->productPrice) * 100);
                 }
-                $orderDiscountPrice += $dp;                
+                $orderDiscountPrice += $dp;
+		//here is where I have to write down something                
             }
             if($orderDiscountPrice < $totalOrderPrice){
                 $orderDiscountedPrice = $totalOrderPrice - $orderDiscountPrice;

@@ -160,12 +160,7 @@ class OrderController extends Controller
         if(count($orders) !== 0){
             $responseArray = array();
             foreach($orders as $o){
-                /*$orderItems = DB::select("SELECT COUNT(id) FROM order_items WHERE order_id = " . $o->id . " ");
-                $itemsCount = 0; 
-                if(count($orderItems) != 0){
-                    $itemsCount = count($orderItems);
-                }*/
-                array_push($responseArray, array('id' => $o->id, 'status' => $o->stat, 'date' => jdate('Y-m-d', $o->date),
+                array_push($responseArray, array('id' => $o->id, 'status' => $o->stat, 'date' => jdate('Y-m-d', $o->date), 'd' => (time() - $o->date), 
                     'price' => ($o->total_items + $o->shipping_cost), 'orderReferenceId' => $o->orderReferenceID, 'postalCode' => $o->postal_code, 'firstName' => $o->fname, 'lastName' => $o->lname));
             }
             echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'successfully found previous orders', 'orders' => $responseArray));
@@ -248,7 +243,7 @@ class OrderController extends Controller
                 "SELECT P.id, PP.id AS packId, P.buyPrice, P.prodName_fa, P.type, P.prodID, P.prodWeight, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PL.stock > 0 AND PL.pack_stock > 0 AND (PL.pack_stock * PP.count <= PL.stock) AND PP.status = 1 AND P.prodStatus = 1 AND PL.pack_id = $key AND P.stock > 0 AND PP.stock > 0 "
+                WHERE PL.stock > 0 AND PL.pack_stock > 0 AND PP.status = 1 AND P.prodStatus = 1 AND PL.pack_id = $key AND P.stock > 0 AND PP.stock > 0 "
             );
             if(count($productInfo) !== 0){
                 $productInfo = $productInfo[0];
@@ -685,7 +680,7 @@ class OrderController extends Controller
                 'InvoiceNumber' => '' . $orderId,
                 'InvoiceDate' => date('Y/m/d H:i:s'),
                 'Amount' => (($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser) * 10,
-                'RedirectAddress' => 'https://honari.com/newtest/payment-result/order/pasargad',
+                'RedirectAddress' => 'https://honari.com/payment-result/order/pasargad',
                 'Timestamp' => date('Y/m/d H:i:s'),
             ];
             $pasargad = new Pasargad();         

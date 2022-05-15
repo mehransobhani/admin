@@ -25,6 +25,11 @@ class SitemapController extends Controller
         $sitemap =  $sitemap . '<loc>https://honari.com/sa/sitemap/primary.xml</loc>';
         $sitemap =  $sitemap . '<lastmod>' . date('Y-m-d') . '</lastmod>';
         $sitemap =  $sitemap . '</sitemap>';
+	
+	$sitemap =  $sitemap . '<sitemap>';
+        $sitemap =  $sitemap . '<loc>https://honari.com/sa/sitemap/categories.xml</loc>';
+        $sitemap =  $sitemap . '<lastmod>' . date('Y-m-d') . '</lastmod>';
+        $sitemap =  $sitemap . '</sitemap>';
         
         for($i=0; $i< $numberOfFiles; $i++){
             $sitemap =  $sitemap . '<sitemap>';
@@ -130,7 +135,7 @@ class SitemapController extends Controller
         $sitemap = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
         foreach($categories as $category){
             $sitemap = $sitemap . '<url>';
-            $sitemap = $sitemap . '<loc>https://honari.com/shop/product/category' . urlencode($category->url) . '</loc>';
+            $sitemap = $sitemap . '<loc>https://honari.com/shop/product/category/' . str_replace('%2F', '', urlencode(trim($category->url))) . '</loc>';
             $sitemap = $sitemap . '<lastmod>' . date('Y-m-d', $category->date) . '</lastmod>';
             if($category->parentID == 0){
                 $sitemap = $sitemap . '<priority>0.80</priority>';
