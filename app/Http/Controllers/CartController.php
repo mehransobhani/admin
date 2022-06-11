@@ -34,7 +34,7 @@ class CartController extends Controller
                 "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PL.pack_id = $key AND PP.status = 1 AND P.prodStatus = 1 AND PL.stock > 0 AND PL.pack_stock > 0  
+                WHERE PL.pack_id = $key AND PP.status = 1 AND P.prodStatus = 1 AND PL.stock > 0 AND PL.pack_stock > 0 AND $value->count <= PL.pack_stock 
                 LIMIT 1 ");
             if(count($product) !== 0){
                 $product = $product[0];

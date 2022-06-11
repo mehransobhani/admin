@@ -67,7 +67,7 @@ class HomeController extends Controller
         $product = DB::select(
             "SELECT * FROM products WHERE url = '$r' LIMIT 1"
         );
-	if(count($product) == 0 && $route != 'painting' && $route != 'charm'){
+	if(count($product) == 0 && $route != 'painting'){
             $product = DB::select("SELECT * FROM products WHERE url LIKE '%$route' LIMIT 1");
             if(count($product) != 0){
                 $product = $product[0];
@@ -107,16 +107,6 @@ class HomeController extends Controller
                 $productObject->productOtherImages = $pi->prodOimages;
                 $productObject->subProducts = [];
                 $productObject->productStatus = $productStatus;
-
-		
-		$packs = DB::select("SELECT PP.id, PL.pack_stock AS stock, PP.label, PP.base_price AS basePrice, PP.price, PP.count, 0 AS discountPercent, PP.price AS discountedPrice
-                    FROM products_location PL 
-                    INNER JOIN product_pack PP ON PL.pack_id = PP.id 
-                    WHERE PL.product_id = $productObject->productId AND PP.status = 1 
-                    ORDER BY PL.pack_stock DESC "
-                );
-                $productObject->packs = $packs;
-		
                 
                 if($productStatus === -1){
                     $productObject->productPrice = 0;
@@ -168,17 +158,7 @@ class HomeController extends Controller
                     $productObject->aparat = $pi->aparat;
                     $productObject->productOtherImages = $pi->prodOimages;
                     $productObject->productStatus = $productStatus;
-                
-		    
-		    $packs = DB::select("SELECT PP.id, PL.pack_stock AS stock, PP.label, PP.base_price AS basePrice, PP.price, PP.count, 0 AS discountPercent, PP.price AS discountedPrice
-                    	FROM products_location PL 
-                    	INNER JOIN product_pack PP ON PL.pack_id = PP.id 
-                    	WHERE PL.product_id = $productObject->productId AND PP.status = 1 
-                    	ORDER BY PL.pack_stock DESC "
-                    );
-                    $productObject->packs = $packs;
-		    
-    
+                    
                     if($productStatus === -1){
                         $productObject->productPrice = 0;
                         $productObject->productBasePrice = 0;
@@ -213,7 +193,7 @@ class HomeController extends Controller
             /*** FINDING SIMILAR PRODUCTS AND BREADCRUMB ***/
             $similarProducts= [];
             $breadcrumb = [];
-            $productCategory = DB::select("SELECT category FROM product_category WHERE product_id = $product->id ORDER BY kind ASC ");
+            $productCategory = DB::select("SELECT category FROM product_category WHERE product_id = $product->id");
             if(count($productCategory) !== 0){
                 $productCategory = $productCategory[0];
                 $category = DB::select("SELECT C.name FROM category C WHERE C.id = $productCategory->category LIMIT 1");
@@ -266,13 +246,6 @@ class HomeController extends Controller
                 }while($categoryId !== 0 && $allowContinue);
             }
 
-	    if($product->prodStatus == 3 || $product->prodStatus == 4){
-	    	$productObject->packs = [];
-		$productObject->productId = $product->id;
-		$productObject->productName = $product->prodName_fa;
-		$productObject->courses = [];
-		$productObject->productOtherImages = [];
-	    }
             echo json_encode(array('status' => 'done', 'found' => true, 'type' => 'product', 'url' => $r, 'id' => $product->id, 'prodID' => $product->prodID, 'name' => $product->prodName_fa, 'information' => $productObject, 'breadcrumb' => array_reverse($breadcrumb), 'similarProducts' => $similarProducts, 'description' => $product->prodDscb, 'features' => $features));
         }else{
             $found = false;
@@ -354,91 +327,28 @@ class HomeController extends Controller
 		$categoryUrl = $category->url . '%';
 
 		$subCategories = $this->getSubCategories($category->id);
-		
-		//FROM HERE IT IS NEW
-		/*
 
-		$havingProductIds = DB::select("SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN products_location PL INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id WHERE PC.category IN ($subCategories) AND PC.kind = 'primary' AND PL.stock > 0 AND PL.pack_stock > 0 AND PL.anbar_id = 1 AND PP.status = 1 AND P.prodStatus = 1 $discountQuery");
-                
-                $finishedProductIds = [];
-                if($onlyDiscountedProducts == false){
-                    $finishedProductIds = DB::select("SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN products_location PL INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id WHERE PC.category IN ($subCategories) AND PC.kind = 'primary' AND PL.anbar_id = 1 AND PP.status = 1 AND P.prodStatus = 1 ");
-                }
-
-                $hpis = [];
-                $fpis = [];
-
-                foreach($havingProductIds as $hpi){
-                    array_push($hpis, $hpi->product_id);
-                }
-
-                foreach($finishedProductIds as $fpi){  
-                    if(array_search($fpi->product_id, $fpis) == false){
-                        array_push($fpis, $fpi->product_id); 
-                    }
-                }
-
-                $havingProductIdsCondition = ' P.id <> 0 ';
-                $finishedProductIdsCondition = ' P.id <> 0 ';
-                if(count($hpis) != 0){
-                    $havingProductIdsCondition = 'P.id IN (' .  implode(", ", $hpis) . ') ';
-                }
-                if(count($fpis) != 0){
-                    $finishedProductIdsCondition = 'P.id IN (' .  implode(", ", $fpis) . ') ';
-                }
-
-                $queryHaving = "SELECT P.id, PP.id AS packId, 
-                        P.prodName_fa, P.prodID, P.url, 
-                        P.prodStatus, P.prodUnite, P.stock AS productStock, 
-                        PP.stock AS packStock, PP.status, PP.price, 
-                        PP.base_price, PP.label, PP.count, PPC.category 
-                    FROM products P 
-                    INNER JOIN products_location PL ON P.id = PL.product_id 
-                    INNER JOIN product_pack PP ON PL.pack_id = PP.id 
-                    INNER JOIN product_category PPC ON PPC.product_id = P.id 
-                    WHERE P.prodStatus = 1 AND PPC.category IN ($subCategories) AND  $havingProductIdsCondition $discountQuery
-                        AND PP.status = 1 AND PPC.kind = 'primary' ORDER BY P.id DESC " ;
-                
-                $queryFinished = "SELECT P.id, 0 AS packId, P.prodName_fa, 
-                        P.prodID, P.url, P.prodStatus, P.prodUnite, 0 AS productStock, 
-                        0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 
-                        0 AS `count`, PPC.category 
-                    FROM products P 
-                        INNER JOIN product_category PPC ON PPC.product_id = P.id 
-                        INNER JOIN products_location PL ON P.id = PL.product_id 
-                    WHERE P.prodStatus = 1 AND PPC.category IN ($subCategories) AND $finishedProductIdsCondition 
-                        AND PPC.kind = 'primary' ORDER BY P.id DESC ";
-
-		
-		*/
-                $having = " AND P.prodStatus = 1 AND PL.stock > 0 AND  PL.pack_stock > 0 AND PL.anbar_id = 1 AND PP.status = 1 $discountQuery ";
-                $finished = " AND P.prodStatus = 1 AND (PL.stock <=  0 OR PL.pack_stock <= 0 ) AND PL.anbar_id = 1 "; //AND ((P.id NOT IN (SELECT DISTINCT PLL.product_id FROM products_location PLL )) OR PL.stock = 0 OR PL.pack_stock = 0 ) "; //"AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
+                $having = " AND P.prodStatus = 1 AND PL.stock > 0 AND  PL.pack_stock > 0 AND PP.status = 1 $discountQuery ";
+                $finished = " AND P.prodStatus = 1 AND (PL.stock <=  0 OR PL.pack_stock <= 0 )"; //AND ((P.id NOT IN (SELECT DISTINCT PLL.product_id FROM products_location PLL )) OR PL.stock = 0 OR PL.pack_stock = 0 ) "; //"AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
 
                 $queryHaving = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                     WHERE C.id IN ($subCategories)) AND PP.status = 1 AND PPC.kind = 'primary' " . $having . " ORDER BY P.id DESC " ;
                 
                 $queryFinished = "SELECT P.id, 0 AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, 0 AS productStock, 0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 0 AS `count`, PPC.category FROM products P INNER JOIN product_category PPC ON PPC.product_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                     WHERE C.id IN ($subCategories)) AND PPC.kind = 'primary' " . $finished . " ORDER BY P.id DESC ";
-		
+
                 $havingProducts = DB::select($queryHaving);
 
 		$finishedProducts = [];
                 if(!$onlyDiscountedProducts){
                     $finishedProducts = DB::select($queryFinished);
                 }
-		
-		$selectedProducts = [];
+
                 foreach($havingProducts as $hp){
-		    if(array_search($hp->id, $selectedProducts) === false){
-			array_push($products, $hp);
-			array_push($selectedProducts, $hp->id);
-		    }
+                    array_push($products, $hp);
                 }
                 foreach($finishedProducts as $fp){
-		    if(array_search($fp->id, $selectedProducts) === false){
-			 array_push($products, $fp);
-			 array_push($selectedProducts, $fp->id);			
-		    }
+                    array_push($products, $fp);
                 }                
                 if(count($products) !== 0){
                     $allResponses = [];
@@ -485,7 +395,7 @@ class HomeController extends Controller
                     $onlyDiscountedProducts = 0;
                 }
 	
-                echo json_encode(array('status' => 'done', 'found' => true, 'type' => 'category', 'id' => $category->id, 'name' => $category->name, 'level' => $category->level, 'onlyDiscounts' => $onlyDiscountedProducts, 'featureGroupId' => $category->feature_group_id, 'breadcrumb' => $breadcrumb, 'count' => $count, 'products' => $products, 'banners' => $banners, 'description' => $category->description));
+                echo json_encode(array('status' => 'done', 'found' => true, 'type' => 'category', 'id' => $category->id, 'name' => $category->name, 'level' => $category->level, 'onlyDiscounts' => $onlyDiscountedProducts, 'featureGroupId', $category->feature_group_id, 'breadcrumb' => $breadcrumb, 'count' => $count, 'products' => $products, 'banners' => $banners, 'description' => $category->description));
             }else{
                 echo json_encode((array('status' => 'failed', 'message' => 'category not found')));
             }

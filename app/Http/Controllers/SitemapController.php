@@ -105,12 +105,12 @@ class SitemapController extends Controller
         $limit = 500;
         $offset = ($step - 1) * $limit;
 
-        $products = DB::select("SELECT url, prodDate FROM products WHERE url <> '' AND url IS NOT NULL ORDER BY id DESC LIMIT $limit OFFSET $offset ");
+        $products = DB::select("SELECT url, prodDate FROM products WHERE url <> '' AND url IS NOT NULL AND prodStatus = 1 ORDER BY id DESC LIMIT $limit OFFSET $offset ");
 
         $sitemap = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
         foreach($products as $product){
             $sitemap = $sitemap . '<url>';
-            $sitemap = $sitemap . '<loc>https://honari.com/' . urlencode($product->url) . '</loc>';
+            $sitemap = $sitemap . '<loc>https://honari.com/' . str_replace('%2F', '/', urlencode(trim($product->url))) . '</loc>';
             $sitemap = $sitemap . '<lastmod>' . date('Y-m-d', $product->prodDate) . '</lastmod>';
             $sitemap = $sitemap . '<changefreq>monthly</changefreq>';
             $sitemap = $sitemap . '<priority>0.60</priority>';
@@ -135,7 +135,7 @@ class SitemapController extends Controller
         $sitemap = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
         foreach($categories as $category){
             $sitemap = $sitemap . '<url>';
-            $sitemap = $sitemap . '<loc>https://honari.com/shop/product/category/' . str_replace('%2F', '', urlencode(trim($category->url))) . '</loc>';
+            $sitemap = $sitemap . '<loc>https://honari.com/shop/product/category/' . str_replace('%2F', '/', urlencode(trim($category->url))) . '</loc>';
             $sitemap = $sitemap . '<lastmod>' . date('Y-m-d', $category->date) . '</lastmod>';
             if($category->parentID == 0){
                 $sitemap = $sitemap . '<priority>0.80</priority>';

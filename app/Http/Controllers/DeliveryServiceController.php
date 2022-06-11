@@ -204,6 +204,10 @@ class DeliveryServiceController extends Controller
         $maxLength = 0;
         $totalVolume = 0;
         $totalCartPrice = 0;
+	if($shoppingCart->products == '{}'){
+		echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'there is not any available shopping cart', 'umessage' => 'سبد خرید شما خالی است'));
+                exit();
+	}
         $shoppingCartProducts = json_decode($shoppingCart->products); 
         $productsInformation = [];
         foreach($shoppingCartProducts as $key => $value){
@@ -211,12 +215,13 @@ class DeliveryServiceController extends Controller
                         "SELECT P.id, P.prodName_fa, P.prodStatus, P.prodID, P.prodPicture, P.stock AS prodStock, PC.category, 
                         PP.label, PP.count, PP.base_price, PP.price, PP.stock, PP.status, P.prodWeight AS weight, PI.length, PI.width, PI.height
                         FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                        INNER JOIN product_info PI ON P.id = PI.product_id 
-                        WHERE PP.id = $key 
+                        INNER JOIN product_info PI ON P.id = PI.product_id INNER JOIN products_location PL ON PP.id = PL.pack_id 
+                        WHERE PP.id = $key AND PL.stock > 0 AND PL.pack_stock > 0 AND PL.pack_stock >= $value->count
                         LIMIT 1" 
             );
             if(count($productInfo) == 0){
-                continue;
+                echo json_encode(array('status' => 'failed','id' => $key, 'user_id' => $user->id, 'source' => 'c', 'message' => 'there is not any available shopping cart', 'umessage' => 'حداقل یک محصول ناموجود در سبد خرید شما وجود دارد'));
+            	exit();
             }
             $productInfo = $productInfo[0];
             if(
@@ -265,6 +270,13 @@ class DeliveryServiceController extends Controller
         $deliveryOptions = $this->calculateDeliveryServicesPrice($deliveryOptions, $provinceId, $cityId, $totalWeight, $totalVolume, $maxLength);
 
         $deliveryOptions = DiscountCalculator::calculateDeliveryDiscount($userId, $provinceId, $totalCartPrice, $productsInformation, $deliveryOptions);
+	
+	//### REMOVING POST OPTION IF USER HAD PEYK OPTION AVAILABLE
+	if(count($deliveryOptions) == 2){
+		if($deliveryOptions[0]->id == 11 && $deliveryOptions[1]->id == 14){
+			unset($deliveryOptions[1]);
+		}
+	}
 
         echo json_encode(array('status' => 'done', 'message' => 'delivery options successfully found', 'options' => $deliveryOptions));
     }
@@ -377,7 +389,7 @@ class DeliveryServiceController extends Controller
     public static function checkLocation($serviceId, $lat, $lon){
         $inside = false;
         $locations = [];
-        if($serviceId == 11){
+        if($serviceId == 15){
             $locations = [[35.7398594,51.6230822],[35.7401032,51.6225243],[35.7463729,51.598835],[35.7526422,51.5966034],[35.7573786,51.5849304],
             [35.7664328,51.5873337],[35.78231,51.5366936],[35.7919531,51.530664],[35.7933107,51.5385818],[35.8027784,51.537466],[35.8164908,51.5341187],
             [35.8196227,51.5087128],[35.8163516,51.5009022],[35.8226849,51.4917183],[35.8193443,51.484766],[35.8276955,51.4683723],[35.8269996,51.4637375],
@@ -419,7 +431,7 @@ class DeliveryServiceController extends Controller
             [35.6080453,51.3441753],[35.6093712,51.3555908],[35.6107668,51.3611698],[35.611953,51.3662338],[35.6038583,51.3704395],[35.604277,51.3899231],
             [35.6014856,51.4180756],[35.5841763,51.4216375],[35.5843159,51.4226675],[35.5838971,51.4245987],[35.5833387,51.4256287],[35.5823265,51.4269161],
             [35.5805116,51.4369154],[35.581454,51.4466572],[35.5848046,51.4494038],[35.590249,51.4558411]];
-        }else if($serviceId == 15){
+        }else if($serviceId == 11){
             $locations = [
             [35.7678951,51.1938072],[35.7696217,51.2508766],[35.7690983,51.2621231],[35.7768422,51.2689225],[35.7785644,51.2967065],[35.7862084,51.3059033],
             [35.7918831,51.3196825],[35.7892818,51.3315677],[35.7904095,51.3377407],[35.7972048,51.3422042],[35.7968226,51.3528663],[35.8053393,51.3601513],
@@ -596,7 +608,7 @@ class DeliveryServiceController extends Controller
             exit();
         }
         $availableSelectedService = $availableSelectedService[0];
-        if(($availableSelectedService->service_id == 12 ||$availableSelectedService->service_id == 12) && $availableSelectedService->work_time == 0){
+        if(($availableSelectedService->service_id == 11 ||$availableSelectedService->service_id == 12) && $availableSelectedService->work_time == 0){
             echo json_encode(array('status' => 'done', 'found' => false, 'message' => 'user have not chosen a work time for the selected delivery service'));
             exit();
         }

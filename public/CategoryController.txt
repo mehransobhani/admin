@@ -106,218 +106,12 @@ class CategoryController extends Controller
         if(isset($request->id) && isset($request->order)){
             $category = Category::where('id', $request->id);
             if($category->count() !== 0){
-		//### START OF NEW PART
-		/*
-		$category = $category->first();
-                $order = $request->order;
-                $onlyAvailableProducts = $request->onlyAvailableProducts;
-		        $onlyDiscounts = $request->onlyDiscounts;
-                $name = '';
-                $minPrice = '';
-                $maxPrice = '';
-		        $discount = '';
-                $time = time();
-                if($onlyDiscounts == 1){
-                    $discount = " AND PL.product_id IN (SELECT DD.dependency_id 
-                    FROM discounts D INNER JOIN discount_dependencies DD ON DD.discount_id = D.id 
-                    WHERE D.type_id = 5 AND D.status = 1 AND (D.start_date IS NULL OR D.start_date <= $time) AND (D.finish_date IS NULL OR D.finish_date >= $time) AND (D.expiration_date IS NULL OR D.expiration_date >= $time) AND DD.type_id = 1 AND (DD.final_stock = 0 OR DD.final_stock < PL.pack_stock)
-                    ) ";
-                }
-                if($request->minPrice != 0 && $request->minPrice != ''){
-                    $minPrice = " AND PP.price >= $request->minPrice ";
-                }
-                if($request->maxPrice != 0 && $request->maxPrice != ''){
-                    $maxPrice = " AND PP.price <= $request->maxPrice ";
-                }
-                if($request->searchInput != ''){
-                    $name = " AND P.prodName_fa LIKE '%" . $request->searchInput . "%'";
-                }
-                
-                $order = " ORDER BY P.prodDate DESC";
-		        $finishedOrder = $order;
-                if($request->order == 'old'){
-                    $order = " ORDER BY P.prodDate ASC";
-                }else if($request->order == 'cheap'){
-                    $order = " ORDER BY PP.price ASC, P.prodDate DESC";
-		        $finishedOrder = " ORDER BY P.prodDate DESC ";
-                }else if($request->order == 'expensive'){
-                    $order = " ORDER BY PP.price DESC, P.prodDate DESC";
-		        $finishedOrder = " ORDER BY P.prodDate DESC ";
-                }
-                
-                $response = [];
-
-		        $categoryUrl = $category->url . '%';
-
-
-		        $subCategories = $this->getSubCategories($category->id); 
-
-
-                $havingProductIds = DB::select("SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN products_location PL INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id WHERE PC.category IN ($subCategories) AND PC.kind = 'primary' AND PL.stock > 0 AND PL.pack_stock > 0 AND PL.anbar_id = 1 AND PP.status = 1 AND P.prodStatus = 1 $discount");
-                $finishedProductIds = [];
-
-                if($onlyDiscounts != 1 && $onlyAvailableProducts != 1){
-                    $finishedProductIds = DB::select("SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN products_location PL INNER JOIN products P ON PC.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id WHERE PC.category IN ($subCategories) AND PC.kind = 'primary' AND PL.anbar_id = 1 AND PP.status = 1 AND P.prodStatus = 1 ");
-                }
-
-                $hpis = [];
-                $fpis = [];
-
-                foreach($havingProductIds as $hpi){
-                    array_push($hpis, $hpi->product_id);
-                }
-
-                foreach($finishedProductIds as $fpi){  
-                    if(array_search($fpi->product_id, $fpis) == false){
-                        array_push($fpis, $fpi->product_id); 
-                    }
-                }
-
-                $filters = $request->filters;
-                $distinctFiltersCount = 0;
-                $distinctFiltersArray = [];
-                foreach($filters as $filter){
-                    $found = false;
-                    foreach($distinctFiltersArray as $dfa){
-                        if($dfa['en_name'] == $filter['en_name']){
-                            $found = true;
-                            break;
-                        }
-                    }
-                    if($found === false){
-                        array_push($distinctFiltersArray, $filter);
-                    }
-                }
-                $distinctFiltersCount = count($distinctFiltersArray);
-
-                $fhpis = [];
-                $ffpis = [];
-                $totalCount = 0;
-
-                foreach($hpis as $hpi){
-                    if(count($filters) !== 0){
-                        $i = 0;
-                        $productMetas = DB::select("SELECT * FROM products_meta WHERE product_id = $hpi");
-                        if(count($productMetas) !== 0){
-                            foreach($filters as $filter){
-                                foreach($productMetas as $pm){
-                                    if($pm->key === '__' . $filter['en_name'] && $pm->value == $filter['value']){
-                                        $i++;
-                                    }
-                                }
-                            }
-                        }
-                        if($i === $distinctFiltersCount){
-                            array_push($fhpis, $hpi);
-                            $totalCount++;
-                        }
-                    }else{
-                        array_push($fhpis, $hpi);
-                        $totalCount++;
-                    }
-                }
-
-                foreach($fpis as $fpi){
-                    if(count($filters) !== 0){
-                        $i = 0;
-                        $productMetas = DB::select("SELECT * FROM products_meta WHERE product_id = $fpi");
-                        if(count($productMetas) !== 0){
-                            foreach($filters as $filter){
-                                foreach($productMetas as $pm){
-                                    if($pm->key === '__' . $filter['en_name'] && $pm->value == $filter['value']){
-                                        $i++;
-                                    }
-                                }
-                            }
-                        }
-                        if($i === $distinctFiltersCount){
-                            array_push($ffpis, $fpi);
-                            $totalCount++;
-                        }
-                    }else{
-                        array_push($ffpis, $fpi);
-                        $totalCount++;
-                    }
-                }
-
-
-                $havingProductIdsCondition = ' P.id <> 0 ';
-                $finishedProductIdsCondition = ' P.id <> 0 ';
-                if(count($fhpis) != 0){
-                    $havingProductIdsCondition = 'P.id IN (' .  implode(", ", $fhpis) . ') ';
-                }
-                if(count($ffpis) != 0){
-                    $finishedProductIdsCondition = 'P.id IN (' .  implode(", ", $ffpis) . ') ';
-                }
-
-                $queryHaving = "SELECT P.id, PP.id AS packId, 
-                        P.prodName_fa, P.prodID, P.url, 
-                        P.prodStatus, P.prodUnite, P.stock AS productStock, 
-                        PP.stock AS packStock, PP.status, PP.price, 
-                        PP.base_price, PP.label, PP.count, PPC.category 
-                    FROM products P 
-                    INNER JOIN products_location PL ON P.id = PL.product_id 
-                    INNER JOIN product_pack PP ON PL.pack_id = PP.id 
-                    INNER JOIN product_category PPC ON PPC.product_id = P.id 
-                    WHERE PPC.category IN ($subCategories) AND  $havingProductIdsCondition 
-                        AND PP.status = 1 AND PPC.kind = 'primary'"  . $name . $minPrice . $maxPrice . $order . " " ;
-                
-                $queryFinished = "SELECT P.id, 0 AS packId, P.prodName_fa, 
-                        P.prodID, P.url, P.prodStatus, P.prodUnite, 0 AS productStock, 
-                        0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 
-                        0 AS `count`, PPC.category 
-                    FROM products P 
-                        INNER JOIN product_category PPC ON PPC.product_id = P.id 
-                        INNER JOIN products_location PL ON P.id = PL.product_id 
-                    WHERE PPC.category IN ($subCategories) AND $finishedProductIdsCondition 
-                        AND PPC.kind = 'primary' " . $name . $minPrice . $maxPrice . $finishedOrder . " " ;
-
-                $allResponses = [];
-
-                $havingProducts = DB::select($queryHaving);
-                $finishedProducts = [];
-                if($onlyDiscounts != 1){
-                    if($onlyAvailableProducts == 0){
-                        $finishedProducts = DB::select($queryFinished);
-                    }
-                }
-
-                $products = $havingProducts;
-                foreach($finishedProducts as $finishedProduct){
-                    array_push($products, $finishedProduct);
-                }
-
-                if(count($products) != 0){
-                    $i=0;
-                    for($i=($request->page - 1)*24; $i < count($products) && $i < (($request->page - 1)*24) + 24; $i++){
-                        $productObject = new stdClass();
-                        $productObject->productId = $products[$i]->id;
-                        $productObject->productPackId = $products[$i]->packId;
-                        $productObject->productName = $products[$i]->prodName_fa;
-                        $productObject->prodID = $products[$i]->prodID;
-                        $productObject->categoryId = $products[$i]->category;
-                        $productObject->productPrice = $products[$i]->price;
-                        $productObject->productUrl = $products[$i]->url;
-                        $productObject->productBasePrice = $products[$i]->base_price;
-                        $productObject->productUnitCount = $products[$i]->count;
-                        $productObject->productUnitName = $products[$i]->prodUnite;
-                        $productObject->productLabel = $products[$i]->label;
-                        array_push($allResponses, $productObject);
-                    }
-                    //$r = array_slice($allResponses, ($request->page - 1)*24, 24);
-                    $allResponses = DiscountCalculator::calculateProductsDiscount($allResponses);
-                    echo json_encode(array('status' => 'done', 'found' => true, 'categoryName' => $category->name, 'count' => count($products), 'products' => $allResponses, 'message' => 'products are successfully found')); 
-                    exit();
-                }else{
-                    echo json_encode(array('status' => 'done',  'found' => false, 'message' => 'there is not any products available to show', 'categoryName' => $category->name, 'count' => 0, 'products' => []));
-                }
-		*/
-		//###END OF NEW PART
-                
-		$category = $category->first();
+                $category = $category->first();
                 $order = $request->order;
                 $onlyAvailableProducts = $request->onlyAvailableProducts;
 		$onlyDiscounts = $request->onlyDiscounts;
+                //$having = " AND PL.stock > 0 AND PL.pack_stock > 0 AND PL.anbar_id = 1 AND P.prodStatus = 1 AND P.stock > 0 " ; //" AND PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock)";
+                //$finished = " AND P.prodStatus = 1 AND (PL.stock <=  0 OR PL.pack_stock <= 0 )";//  AND ((P.id NOT IN (SELECT DISTINCT PLL.product_id FROM products_location PLL ) OR (SELECT PLLL.id FROM products_location PLLL WHERE PLLL.product_id = P.id AND PLLL.pack_stock <> 0) IS NULL)) "; //"AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
                 $name = '';
                 $minPrice = '';
                 $maxPrice = '';
@@ -360,8 +154,8 @@ class CategoryController extends Controller
 		$having = " AND P.prodStatus = 1 AND PL.stock > 0 AND  PL.pack_stock > 0 AND PP.status = 1 AND (PP.count * PL.pack_stock <= PL.stock) ";
                 $finished = " AND P.prodStatus = 1 AND ((P.id NOT IN (SELECT DISTINCT PLL.product_id FROM products_location PLL )) OR PL.stock = 0 OR PL.pack_stock = 0 ) "; //"AND (P.stock = 0 OR PP.stock = 0 OR  PP.status = 0 OR (PP.count * PP.stock > P.stock))";
 
-		$having = " $discount AND P.prodStatus = 1 AND PL.stock > 0 AND  PL.pack_stock > 0 AND PP.status = 1 AND PL.anbar_id = 1";
-                $finished = " AND P.prodStatus = 1 AND (PL.stock <=  0 OR PL.pack_stock <= 0 ) AND PL.anbar_id = 1"; 
+		$having = " $discount AND P.prodStatus = 1 AND PL.stock > 0 AND  PL.pack_stock > 0 AND PP.status = 1 ";
+                $finished = " AND P.prodStatus = 1 AND (PL.stock <=  0 OR PL.pack_stock <= 0 ) "; 
 
                 $queryHaving = "SELECT  P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PPC ON PPC.product_id = P.id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                     WHERE C.id IN ($subCategories)) AND PP.status = 1 AND PPC.kind = 'primary'" . $having . $name . $minPrice . $maxPrice . $order . "";
@@ -369,6 +163,12 @@ class CategoryController extends Controller
                 $queryFinished = "SELECT  P.id, 0 AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, 0 AS productStock, 0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 0 AS `count`, PPC.category FROM products P INNER JOIN product_category PPC ON PPC.product_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
                     WHERE C.id IN ($subCategories)) and PPC.kind = 'primary' " . $finished . $name . $minPrice . $maxPrice . $finishedOrder . "";
 
+		/*
+                $queryHaving = "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PPC.category FROM products P INNER JOIN product_category PPC ON PPC.product_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id INNER JOIN product_pack PP ON PL.pack_id = PP.id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id
+                    WHERE C.id = $request->id OR C.parentID = $request->id) " . $having . $name . $minPrice . $maxPrice . " AND PPC.category = $request->id AND PP.status = 1 " . $order ; 
+                $queryFinished = "SELECT P.id, 0 AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, 0 AS packStock, 0 AS `status`, -1 AS price, 0 AS base_price, '' AS label, 0 AS `count`, PPC.category FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PPC ON PPC.product_id = P.id INNER JOIN products_location PL ON P.id = PL.product_id WHERE P.id IN (SELECT DISTINCT PC.product_id FROM product_category PC INNER JOIN category C ON PC.category = C.id  
+                    WHERE C.id = $request->id OR C.parentID = $request->id ) " . $finished . $name . $minPrice . $maxPrice . " AND PPC.category = $request->id AND PP.status = 1 " . $order;
+                */
 		$havingProducts = DB::select($queryHaving);
                 
 		$finishedProducts = [];
@@ -377,19 +177,15 @@ class CategoryController extends Controller
                         $finishedProducts = DB::select($queryFinished);
                     }
                 }
-		$selectedProducts = [];
+
                 $products = [];
                 foreach($havingProducts as $hp){
-                    if($hp->status == 1 && array_search($hp->id, $selectedProducts) === false){
+                    if($hp->status == 1){
                         array_push($products, $hp);
-			array_push($selectedProducts, $hp->id);
                     }
                 }
                 foreach($finishedProducts as $fp){
-		    if(array_search($fp->id, $selectedProducts) === false){
-			array_push($products, $fp);
-			array_push($selectedProducts, $fp->id);
-		    }
+                    array_push($products, $fp);
                 }
                 
                 if(count($products) !== 0){
@@ -467,7 +263,6 @@ class CategoryController extends Controller
                 }else{
                     echo json_encode(array('status' => 'done',  'found' => false, 'message' => 'there is not any products available to show', 'categoryName' => $category->name, 'count' => 0, 'products' => []));
                 }
-		
             }else{
                 echo json_encode((array('status' => 'failed', 'message' => 'category not found')));
             }

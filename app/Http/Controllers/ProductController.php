@@ -379,7 +379,17 @@ class ProductController extends Controller
             exit();
         }
         $selectedItem = 0;
-        $count = count($products);
+        //$count = count($products);
+	$productIds = [];
+	$ps = [];
+	foreach($products as $p){
+		if(array_search($p->productId, $productIds) == false){
+			array_push($productIds, $p->productId);
+			array_push($ps, $p);	
+		}
+	}
+	$products = $ps;
+	$count = count($products);
         $selectedProducs = [];
         $firstItem = ($page - 1) * 12;
         for($i=0; $i<12 && $firstItem + $i < $count ; $i++){

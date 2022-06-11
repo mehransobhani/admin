@@ -153,7 +153,7 @@ class OrderController extends Controller
         $user = DB::select("SELECT * FROM users WHERE id = $userId");
         $user = $user[0];
         $orders = DB::select(
-            "SELECT O.id, O.orderReferenceID, O.date, OI.address, OI.postal_code, OI.fname, OI.lname, O.total_items, O.shipping_cost, O.stat 
+            "SELECT O.id, O.orderReferenceID, O.postReferenceID, O.date, OI.address, OI.postal_code, OI.fname, OI.lname, O.total_items, O.shipping_cost, O.stat 
             FROM orders O INNER JOIN order_info OI ON O.info_id = OI.id 
             WHERE O.user_id = $user->id AND O.stat NOT IN (6, 7) 
             ORDER BY O.date DESC");
@@ -161,7 +161,7 @@ class OrderController extends Controller
             $responseArray = array();
             foreach($orders as $o){
                 array_push($responseArray, array('id' => $o->id, 'status' => $o->stat, 'date' => jdate('Y-m-d', $o->date), 'd' => (time() - $o->date), 
-                    'price' => ($o->total_items + $o->shipping_cost), 'orderReferenceId' => $o->orderReferenceID, 'postalCode' => $o->postal_code, 'firstName' => $o->fname, 'lastName' => $o->lname));
+                    'price' => ($o->total_items + $o->shipping_cost), 'orderReferenceId' => $o->orderReferenceID, 'postReferenceId' => $o->postReferenceID, 'postalCode' => $o->postal_code, 'firstName' => $o->fname, 'lastName' => $o->lname));
             }
             echo json_encode(array('status' => 'done', 'found' => true, 'message' => 'successfully found previous orders', 'orders' => $responseArray));
         }else{
@@ -272,10 +272,11 @@ class OrderController extends Controller
                     $totalWeight += ($productInfo->prodWeight) + ($value->count);
                 }
                 //####### TO BE ADDED ########
-                /*
+                
                 if($productInfo->buyPrice !== NULL){
                     $totalBuyPrice += ($value->count * ($productInfo->buyPrice * $productInfo->count));
                 }
+		/*
                 if($productInfo->type === 'bundle'){
                     $productObject->type = 'bundle';
                 }
@@ -674,12 +675,31 @@ class OrderController extends Controller
                 }
             }
 
+	    //### SENDING CONFIRMATION MESSAGE (SMS) TO THE USER
+	    $message = "با تشکر از خرید شما" . "\n" . 'سفارشتون با موفقیت ثبت شد' . "\n honari.com";
+            $data = [
+                'receptor' => $user->username, 
+                'sender' => '10000055373520', 
+                'message' => $message
+            ];
+
+            $ch = curl_init("http://api.kavenegar.com/v1/7358684B76496D5079754170615766594F534A31724130495344335152326D4F/sms/send.json");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                'Content-Type: multipart/form-data')
+            );
+
+            curl_exec($ch);
+            curl_close($ch);
+
             return json_encode(array('status' => 'done', 'stage' => 'done', 'message' => 'order is set', 'umessage' => 'خرید با موفقیت انجام شد', 'orderId' => $orderId, 'information' => $information));
         }else{
             $parameters = [
                 'InvoiceNumber' => '' . $orderId,
                 'InvoiceDate' => date('Y/m/d H:i:s'),
-                'Amount' => (($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser) * 10,
+                'Amount' => floor((($orderDiscountedPrice + $shippingDiscountedPrice) - $usedStockUser)) * 10,
                 'RedirectAddress' => 'https://honari.com/payment-result/order/pasargad',
                 'Timestamp' => date('Y/m/d H:i:s'),
             ];

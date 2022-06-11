@@ -5,6 +5,7 @@ use App\Http\Controllers\BankController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DeliveryServiceController;
 use App\Http\Controllers\DiscountController;
@@ -208,6 +209,9 @@ Route::get('/get-six-new-product', function(){
        
         Route::post('/user-pasargad-charge-result',     [BankController::class,             'pasargadBankChargeResult']); // OK! 
         Route::post('/user-pasargad-payment-result',    [BankController::class,             'pasargadBankPaymentResult']); // OK!
+	
+	/*#####| USER CRM ROUTES |#####*/
+        Route::post('/user-crm-information',            [ChatController::class,             'userCrmInformation']); // OK!
 
         /***| COMMENT ROUTES |***/
         Route::post('/add-comment',                     [CommentController::class,          'addComment']); // TO BE TESTED!

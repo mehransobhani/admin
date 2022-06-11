@@ -202,8 +202,8 @@ class BankController extends Controller
         if(count($orderInformatin) !== 0){
             $orderInformatin = $orderInformatin[0];
             $information = [];
-            $information['paidPrice'] = ($orderInformatin['total_items'] + $orderInformatin['shipping_cost']) - ($orderInformatin['shipping_price_off'] + $orderInformatin['off']);
-            $information['buyPrice'] = $orderInformatin['buy_price'];
+            $information['paidPrice'] = ($orderInformatin->total_items + $orderInformatin->shipping_cost) - ($orderInformatin->shipping_price_off + $orderInformatin->off);
+            $information['buyPrice'] = $orderInformatin->buy_price;
             $information['userPhone'] = $user->username;
             $information['userId'] = $user->ex_user_id;
             $information['products'] = [];
@@ -220,7 +220,7 @@ class BankController extends Controller
                 FROM order_items OI 
                 INNER JOIN products P ON OI.product_id = P.id 
                     INNER JOIN product_category PC ON PC.product_id = OI.product_id 
-                    INNER JOIN category C INNER JOIN C.id = PC.category 
+                    INNER JOIN category C ON C.id = PC.category 
                 WHERE OI.order_id IN (
                     SELECT id FROM order_items WHERE order_id = $orderId 
                 ) " 
@@ -241,6 +241,27 @@ class BankController extends Controller
                 array_push($information['categories'], $categoryItem);  
             }
         } 
+
+	//### SENDING CONFIRMATION MESSAGE (SMS) TO THE USER
+	$message = "با تشکر از خرید شما" . "\n" . 'سفارشتون با موفقیت ثبت شد' . "\n honari.com";
+        $data = [
+            'receptor' => $user->username,
+            'sender' => '10000055373520',
+            'message' => $message
+        ];
+
+        $ch = curl_init("http://api.kavenegar.com/v1/7358684B76496D5079754170615766594F534A31724130495344335152326D4F/sms/send.json");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: multipart/form-data')
+        );
+
+        curl_exec($ch);
+        curl_close($ch);
+
+
         echo json_encode(array('status' => 'done', 'successfulPayment' => true, 'new'=> true, 'message' => 'payment was successful', 'umessage' => 'پرداخت با موفقیت انجام شده است', 'trackingCode' => $response->TraceNumber, 'information' => $information));
         exit();
     }

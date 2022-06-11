@@ -6,13 +6,113 @@ use App\Classes\ShippingCalculator;
 use App\Http\Controllers\DeliveryServiceController;
 use Dotenv\Util\Str;
 
-class DiscountCalculator{ 
+class DiscountCalculator{
 
     public static function calculateProductDiscount($product){
         $time = time();
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type_id IN (1, 2, 5) AND D.code IS NULL AND D.neworder = 0 AND D.user_start_date IS NULL AND D.user_finish_date IS NULL 
-            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND (D.start_date IS NULL OR D.start_date <= $time) AND (D.finish_date IS NULL OR D.finish_date >= $time) AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
         $reducedPrice = 0;
+        if(!isset($product->packs)){
+            return $product;
+        }
+	if(count($product->packs) === 0){
+	    return $product;
+	}
+        $rps = [];
+        foreach($product->packs as $pack){
+            array_push($rps, 0);
+        }
+        foreach($discounts as $discount){
+            $discountUsers = DB::select("SELECT DD.dependency_id AS user_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.type_id = 4");
+            $discountProvinces = DB::select("SELECT DD.dependency_id AS province_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.type_id = 3");
+            $discountProducts = DB::select("SELECT DD.dependency_id AS product_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.type_id = 1");
+            $discountCategories =  DB::select("SELECT DD.dependency_id AS category_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.type_id = 2");
+            if(count($discountUsers) === 0 && count($discountProvinces) === 0){
+                if($discount->min_price === null || $discount->min_price <= $product->productPrice){
+                    $inputProductObject = new stdClass();
+                    $inputCategoryObject = new stdClass();
+                    $inputProductObject->product_id = $product->productId;
+                    $inputCategoryObject->category_id = $product->categoryId;
+                    
+                    if(($discount->type_id === 1 && (count($discountProducts) === 0 || in_array($inputProductObject, $discountProducts))) ||
+                        ($discount->type_id === 2 && (count($discountCategories) === 0 || in_array($inputCategoryObject, $discountCategories)))){
+                        $rp = 0;
+                        if($discount->price !== null){
+                            $rp += $discount->price;
+                            foreach($rps as $r){
+                                $r += $rp;
+                            }
+                        }else if($discount->percent !== null){
+                            $i=0;
+                            for($i=0; $i<count($product->packs); $i++){
+                                $temp = ($discount->percent / 100) * $product->packs[$i]->price;
+                                if($discount->max_price !== null && $temp > $discount->max_price){
+                                    $rps[$i] += $discount->max_price;
+                                }else{
+                                    $rps[$i] += $temp;
+                                }
+                            }
+                        }
+                    }else if($discount->type_id === 5 && in_array($inputProductObject, $discountProducts)){
+                        $discountDependencyInformation = DB::select(
+                            "SELECT * FROM discount_dependencies WHERE discount_id = $discount->id AND dependency_id = $product->productId ORDER BY id DESC LIMIT 1 "
+                        );
+                        if(count($discountDependencyInformation) !== 0){
+                            $discountDependencyInformation = $discountDependencyInformation[0];
+                            if($discountDependencyInformation->final_stock === 0){
+                                $i=0;
+                                for($i=0; $i<count($product->packs); $i++){
+                                    $rp = 0;
+                                    if($discountDependencyInformation->price !== 0 && $discountDependencyInformation->price <= $product->packs[$i]->price){
+                                        $rp = $discountDependencyInformation->price;
+                                    }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent <= 100){
+                                        $rp = ($discountDependencyInformation->percent / 100) * $product->packs[$i]->price;
+                                    }
+                                    $rps[$i] += $rp;
+                                }
+                            }else{
+                                $i=0;
+                                for($i=0; $i<count($product->packs); $i++){
+                                    $rp = 0;
+                                    if($discountDependencyInformation->final_stock < $product->packs[$i]->stock){
+                                        if($discountDependencyInformation->price !== 0 && $discountDependencyInformation->price <= $product->packs[$i]->price){
+                                            $rp = $discountDependencyInformation->price;
+                                        }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent <= 100){
+                                            $rp = ($discountDependencyInformation->percent / 100) * $product->packs[$i]->price;
+                                        }
+                                        $rps[$i] += $rp;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        $i=0;
+        for($i=0; $i<count($product->packs); $i++){
+            if($rps[$i] === 0){
+                $product->packs[$i]->discountedPrice = $product->packs[$i]->price;
+                $product->packs[$i]->discountPercent = 0;
+            }else if($rps[$i] >= $product->packs[$i]->price){
+                $product->packs[$i]->discountedPrice = 0;
+                $product->packs[$i]->discountPercent = 100;
+            }else{
+                $product->packs[$i]->discountedPrice = $product->packs[$i]->price - ($rps[$i] - $rps[$i]%50);
+                $product->packs[$i]->discountPercent = (integer)(($rps[$i]/$product->packs[$i]->price) * 100);
+            }
+        }
+        return $product;
+    }
+ 
+    /*
+    public static function calculateProductDiscount($product){
+        $time = time();
+        $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type_id IN (1, 2, 5) AND D.code IS NULL AND D.neworder = 0 AND D.user_start_date IS NULL AND D.user_finish_date IS NULL 
+            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND (D.start_date IS NULL OR D.start_date <= $time) AND (D.finish_date IS NULL OR D.finish_date >= $time) AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
+        $reducedPrice = 0;
+	$activePacks = 0;
         foreach($discounts as $discount){
             $discountUsers = DB::select("SELECT DD.dependency_id AS user_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.type_id = 4");
             $discountProvinces = DB::select("SELECT DD.dependency_id AS province_id FROM discount_dependencies DD WHERE DD.discount_id = $discount->id AND DD.type_id = 3");
@@ -42,7 +142,6 @@ class DiscountCalculator{
                         $discountDependencyInformation = DB::select(
                             "SELECT * FROM discount_dependencies WHERE discount_id = $discount->id AND dependency_id = $product->productId ORDER BY id DESC LIMIT 1 "
                         );
-                        //this is going to be fantastic
                         if(count($discountDependencyInformation) !== 0){
                             $discountDependencyInformation = $discountDependencyInformation[0];
                             if($discountDependencyInformation->final_stock === 0){
@@ -77,7 +176,6 @@ class DiscountCalculator{
         }
         if($reducedPrice !== 0){
             if($reducedPrice < $product->productPrice){
-                //$product->discountedPrice = $product->productPrice - (100 * (integer)(($reducedPrice) / 100));
                 $product->discountedPrice = $product->productPrice - ($reducedPrice - $reducedPrice%50);
                 $product->discountPercent = (integer)(($reducedPrice/$product->productPrice) * 100);
             }else{
@@ -90,11 +188,14 @@ class DiscountCalculator{
         }
         return $product;
     }
+    */
+
+    
 
     public static function calculateProductsDiscount($products){ 
         $time = time(); 
         $discounts = DB::select("SELECT * FROM discounts D WHERE D.status = 1 AND D.type_id IN (1,2, 5) AND D.code IS NULL AND D.neworder = 0 
-            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND D.start_date IS NULL AND D.finish_date IS NULL AND D.reusable = 1 
+            AND (D.numbers_left IS NULL OR D.numbers_left > 0) AND (D.start_date IS NULL OR D.start_date <= $time) AND (D.finish_date IS NULL OR D.finish_date >= $time) AND D.reusable = 1 
             AND D.user_start_date IS NULL AND D.user_finish_date IS NULL 
             AND (D.expiration_date IS NULL OR D.expiration_date >= $time)");
         if(count($discounts) !== 0){ 
@@ -1121,15 +1222,17 @@ class DiscountCalculator{
             }
             for($i=0; $i < sizeof($discountedProducts); $i++){
                 $dp = $discountedProducts[$i] - $discountedProducts[$i] % 50;
-                if($dp >= $products[$i]->productPrice){
+                //$dp = ($discountedProducts[$i] * $products[$i]->productCount) - (($discountedProducts[$i] * $products[$i]->productCount) % 50);
+		if($dp >= $products[$i]->productPrice){
                     $products[$i]->discountedPrice = 0;
                     $products[$i]->discountPercent = 100;
                     $dp = $products[$i]->productPrice;
-                }else{
+                    //$dp = $products[$i]->productPrice * $products[$i] * $products[$i]->productCount;
+		}else{
                     $products[$i]->discountedPrice = $products[$i]->productPrice - $dp;
                     $products[$i]->discountPercent = ceil(($dp / $products[$i]->productPrice) * 100);
                 }
-                $orderDiscountPrice += $dp;
+                $orderDiscountPrice += $dp * $products[$i]->productCount;
 		//here is where I have to write down something                
             }
             if($orderDiscountPrice < $totalOrderPrice){

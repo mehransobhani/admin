@@ -124,7 +124,7 @@ class SearchController extends Controller
             'indexName' => 'products',
             'query' => null,
             'page' => $page,
-            'size' => 12,
+            'size' => 24,
             'sort' => 'has_stock'
         ];
     
@@ -161,7 +161,7 @@ class SearchController extends Controller
         $query = urlencode($request->category);
         $page = $request->page;
 
-        $url = 'http://search.honari.com/api/v1/management/search/search/?apiToken=21bb3b6e-0f96-4718-8d6c-8f03a538927e&query=' . $query . '&page=' . $page . '&size=12&sort=has_stock';
+        $url = 'http://search.honari.com/api/v1/management/search/search/?apiToken=21bb3b6e-0f96-4718-8d6c-8f03a538927e&query=' . $query . '&page=' . $page . '&size=24&sort=has_stock';
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
