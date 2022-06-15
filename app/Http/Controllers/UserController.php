@@ -166,6 +166,7 @@ class UserController extends Controller
 
     //@route: /api/user-information <--> @middleware: ApiAuthenticationMiddleware
     public function userInformation(Request $request){
+	set_time_limit(4);
         $userId = $request->userId;
         $user = DB::select("SELECT * FROM users WHERE id = $userId");
         $user = $user[0];

@@ -190,6 +190,7 @@ class ProductController extends Controller
     }
 
     public function productFeatures(Request $request){
+	set_time_limit(4);
         $validator = Validator::make($request->all(), [
             'id' => 'required|numeric',
         ]);
@@ -284,6 +285,7 @@ class ProductController extends Controller
     }
 
     public function sixNewProducts(Request $request){
+	set_time_limit(4);
         $products = DB::select("SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, P.stock AS productStock, PP.stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, C.id AS category, C.name AS categoryName
             FROM products P INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id INNER JOIN category C ON PC.category = C.id 
             WHERE PP.status = 1 AND P.prodStatus = 1 AND P.stock > 0 AND  PP.stock > 0 AND PP.status = 1 AND (PP.count * PP.stock <= P.stock) 
@@ -352,6 +354,7 @@ class ProductController extends Controller
     }
 
     public function filterPaginatedNewProducts(Request $request) {
+	set_time_limit(4);
         $validator = Validator::make($request->all(), [
             'page' => 'required|numeric',
         ]);
@@ -470,7 +473,8 @@ class ProductController extends Controller
     }
 
     public function productGoogleTagManagerInformation(Request $request){
-        $validator = Validator::make($request->all(), [
+        set_time_limit(4);
+	$validator = Validator::make($request->all(), [
             'productId' => 'required|numeric',
         ]);
         if($validator->fails()){

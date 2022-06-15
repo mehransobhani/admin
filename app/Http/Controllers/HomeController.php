@@ -53,6 +53,7 @@ class HomeController extends Controller
     }
 
     public function routeInfo(Request $request){
+	set_time_limit(4);
         $validator = Validator::make($request->all(), [
             'route' => 'required|string',
         ]);
@@ -67,7 +68,7 @@ class HomeController extends Controller
         $product = DB::select(
             "SELECT * FROM products WHERE url = '$r' LIMIT 1"
         );
-	if(count($product) == 0 && $route != 'painting' && $route != 'charm'){
+	if(count($product) == 0 && $route != 'painting' && $route != 'charm' && $route != 'baftani'){
             $product = DB::select("SELECT * FROM products WHERE url LIKE '%$route' LIMIT 1");
             if(count($product) != 0){
                 $product = $product[0];
@@ -493,7 +494,8 @@ class HomeController extends Controller
     }
 
     public function homeInformation(Request $request){
-        $banners = [];
+        set_time_limit(4);
+	$banners = [];
         $carousel = [];
         $courses = [];
         $products = [];
@@ -662,5 +664,22 @@ class HomeController extends Controller
     public function destroy($id)
     {
         //
+    }
+
+    public function shortenUrlInfo(Request $request){
+        set_time_limit(4);
+	$route = $request->route;
+        $info = DB::select("SELECT * FROM short_links WHERE slug = '$route' ORDER BY id DESC LIMIT 1");
+        
+        if(count($info) === 0){
+            echo json_encode(array('status' => 'failed', 'source' => 'c', 'message' => 'route did not found' , 'umessage' => 'لینک موردنظر یافت نشد'));
+            exit();
+        }
+
+        $info = $info[0];
+        $views = $info->count + 1;
+        DB::update("UPDATE short_links SET `count` = $views WHERE id = $info->id ");
+        
+        echo json_encode(array('status' => 'done', 'message' => 'information successfully received', 'redirect' => $info->redirect)); 
     }
 }

@@ -106,6 +106,7 @@ class BannerController extends Controller
     }
 
     public function topThreeHomeBanners(Request $request){
+	set_time_limit(4);
         $time = time();
         $firstBanner = DB::select(
             "SELECT img, anchor

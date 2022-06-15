@@ -477,6 +477,7 @@ class CategoryController extends Controller
     }
 
     public function categoryFilters(Request $request){
+	set_time_limit(4);
         $validator = Validator::make($request->all(), [
             'id' => 'required|numeric',
         ]);

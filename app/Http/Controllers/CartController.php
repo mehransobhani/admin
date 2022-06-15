@@ -19,6 +19,7 @@ class CartController extends Controller
 {
     //@route: /api/user-cart <--> @middleware: ApiAuthenticationMiddleware
      public function userCart(Request $request){
+	set_time_limit(4);
         $userId = $request->userId;
         $userCart = DB::select("SELECT products FROM shoppingCarts WHERE user_id = $userId AND active = 1");
         if(count($userCart) === 0){
@@ -29,12 +30,13 @@ class CartController extends Controller
         $userCart = $userCart[0];
         $userCart = json_decode($userCart->products);
         $cartProducts = [];
+	$removedPackIds = [];
         foreach($userCart as $key => $value){
             $product = DB::select(
                 "SELECT P.id, PP.id AS packId, P.prodName_fa, P.prodID, P.url, P.prodStatus, P.prodUnite, PL.stock AS productStock, PL.pack_stock AS packStock, PP.status, PP.price, PP.base_price, PP.label, PP.count, PC.category 
                 FROM products P
                 INNER JOIN products_location PL ON PL.product_id = P.id INNER JOIN product_pack PP ON PL.pack_id = PP.id INNER JOIN product_category PC ON P.id = PC.product_id 
-                WHERE PL.pack_id = $key AND PP.status = 1 AND P.prodStatus = 1 AND PL.stock > 0 AND PL.pack_stock > 0 AND $value->count <= PL.pack_stock 
+                WHERE PL.pack_id = $key AND PP.status = 1 AND PL.stock > 0  AND PL.pack_stock > 0 AND $value->count <= PL.pack_stock 
                 LIMIT 1 ");
             if(count($product) !== 0){
                 $product = $product[0];
@@ -51,13 +53,17 @@ class CartController extends Controller
                 $productObject->productUnitCount = $product->count;
                 $productObject->productUnitName = $product->prodUnite;
                 $productObject->productLabel = $product->label;
-                array_push($cartProducts, $productObject);
+		if($product->prodStatus == 1){
+                	array_push($cartProducts, $productObject);
+		}else{
+			array_push($removedPackIds, $key);
+		}
             }else{
                 $product = DB::select(
-                    "SELECT P.id, $key AS packId, P.prodName_fa, P.prodID, P.url, P.prodUnite, '' AS label, 0 AS `count`, PC.category 
+                    "SELECT P.id, P.prodStatus, $key AS packId, P.prodName_fa, P.prodID, P.url, P.prodUnite, '' AS label, 0 AS `count`, PC.category 
                     FROM products P 
                     INNER JOIN product_pack PP ON P.id = PP.product_id INNER JOIN product_category PC ON P.id = PC.product_id 
-                    WHERE PP.id = $key AND P.prodStatus = 1 
+                    WHERE PP.id = $key  
                     LIMIT 1");
                 if(count($product) !== 0){
                     $product = $product[0];
@@ -74,10 +80,30 @@ class CartController extends Controller
                     $productObject->productUnitCount = 0;
                     $productObject->productUnitName = $product->prodUnite;
                     $productObject->productLabel = $product->label;
-                    array_push($cartProducts, $productObject);
+		    if($product->prodStatus == 1){
+                    	array_push($cartProducts, $productObject);
+		    }else{
+			array_push($removedPackIds, $key);
+		    }
                 }
             }
         }
+	
+	if(count($removedPackIds) != 0){
+		$newCart = '{';
+		foreach($userCart as $key => $value){
+			if(array_search($key, $removedPackIds) === false){
+				if($newCart === '{'){
+					$newCart = $newCart . '"' . $key . '":{"count":' . $value->count . '}';
+				}else{
+					$newCart = $newCart . ',"' . $key . '":{"count":' . $value->count . '}';
+				}
+			}
+		}
+		$newCart = $newCart . '}';
+		DB::update("UPDATE shoppingCarts SET products = '$newCart' WHERE user_id = $userId AND active = 1 ");
+	}
+
         $cartProducts = DiscountCalculator::calculateProductsDiscount($cartProducts);
         echo json_encode(array('status' => 'done', 'message' => 'cart is received', 'cart' => $cartProducts));
         exit();

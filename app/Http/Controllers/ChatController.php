@@ -15,6 +15,7 @@ use stdClass;
 class ChatController extends Controller
 {
     public function userCrmInformation(Request $request){
+	set_time_limit(4);
         $user = DB::select("SELECT * FROM users WHERE id = $request->userId");
         $user = $user[0];
         $key = '12345^&*(H0n@r!54321)*&^54321';

@@ -28,7 +28,7 @@ class SearchController extends Controller
         }
 
         $query = $request->input;
-        $autoCompleteUrl = self::$BASE_URL . self::$AUTO_COMPLETE_URL . '/?apiToken=' . self::$PRODUCTS_AND_COURSES_API_TOKEN . '&query=' . urlencode($query);
+        $autoCompleteUrl = self::$BASE_URL . self::$AUTO_COMPLETE_URL . '/?apiToken=' . self::$PRODUCTS_AND_COURSES_API_TOKEN . '&query=' . urlencode($query) . '&sort=has_stock';
         $ch = curl_init($autoCompleteUrl);
         curl_setopt($ch, CURLOPT_USERAGENT, 'HONARI USER');
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');

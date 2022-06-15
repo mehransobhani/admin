@@ -1,5 +1,5 @@
 <?php
-use App\Http\Controllers\FaqController;
+
 use App\Http\Controllers\ArtController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BannerController;
@@ -240,9 +240,6 @@ Route::get('/get-six-new-product', function(){
     /*#####| HOME ROUTES |#####*/
     Route::get('/home-information',                     [HomeController::class,             'homeInformation']);
 
-    /*#####| SHORTEN ROUTES |#####*/
-    Route::post('/shorten-url-info',                    [HomeController::class,              'shortenUrlInfo']);
-
     Route::get('/testdate', function(Request $request){
         $d = '2022-1-12 14:33:24';
         $time = strtotime($d);
@@ -261,17 +258,3 @@ Route::get('/get-six-new-product', function(){
         echo '<br />';
         echo 'sha256 : ' . hash('sha256', $token);
     });
-
-
-
-
-
-/***| FAQ ROUTES |***/
-Route::get('/cat_list',                                                  [FaqController::class,  'cats_list']); // OK!
-Route::get      ('/get_answer' ,                                     [FaqController::class , 'get_answer']    );
-Route::get      ('/get_fullanswer/{id}' ,                                     [FaqController::class , 'get_fullanswer']    );
-Route::get      ('/get_cat_answers/{id}' ,                                     [FaqController::class , 'get_cat_answers']    );
-Route::get      ('/show/{id}' ,                                     [FaqController::class , 'show']    );
-Route::post      ('/search' ,                                     [FaqController::class , 'search']    );
-
-

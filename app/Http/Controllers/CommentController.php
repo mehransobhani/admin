@@ -15,6 +15,7 @@ use stdClass;
 class CommentController extends Controller
 {
     public function productComments(Request $request){
+	set_time_limit(4);
         $validator = Validator::make($request->all(), [
             'productId' => 'required|numeric',
         ]);

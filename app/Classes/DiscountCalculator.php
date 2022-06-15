@@ -66,7 +66,7 @@ class DiscountCalculator{
                                     $rp = 0;
                                     if($discountDependencyInformation->price !== 0 && $discountDependencyInformation->price <= $product->packs[$i]->price){
                                         $rp = $discountDependencyInformation->price;
-                                    }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent <= 100){
+                                    }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent >0 && $discountDependencyInformation->percent <= 100){
                                         $rp = ($discountDependencyInformation->percent / 100) * $product->packs[$i]->price;
                                     }
                                     $rps[$i] += $rp;
@@ -161,7 +161,7 @@ class DiscountCalculator{
                                         $rp = 0;
                                         if($discountDependencyInformation->price !== 0 && $discountDependencyInformation->price <= $product->productPrice){
                                             $rp += $discountDependencyInformation->price;
-                                        }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent <= 100){
+                                        }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent >0 && $discountDependencyInformation->percent <= 100){
                                             $rp = ($discountDependencyInformation->percent / 100) * $product->productPrice;
                                         }
                                         $reducedPrice += $rp;
@@ -238,7 +238,7 @@ class DiscountCalculator{
                                         $rp = 0;
                                         if($discountDependencyInformation->price !== 0 && $discountDependencyInformation->price <= $product->productPrice){
                                             $rp += $discountDependencyInformation->price;
-                                        }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent <= 100){
+                                        }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent >0 && $discountDependencyInformation->percent <= 100){
                                             $rp = ($discountDependencyInformation->percent / 100) * $product->productPrice;
                                         }
                                         $rps[$i] += $rp;
@@ -250,7 +250,7 @@ class DiscountCalculator{
                                                 $rp = 0;
                                                 if($discountDependencyInformation->price !== 0 && $discountDependencyInformation->price <= $product->productPrice){
                                                     $rp += $discountDependencyInformation->price;
-                                                }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent <= 100){
+                                                }else if($discountDependencyInformation->percent !== 0 && $discountDependencyInformation->percent>0 && $discountDependencyInformation->percent <= 100){
                                                     $rp = ($discountDependencyInformation->percent / 100) * $product->productPrice;
                                                 }
                                                 $rps[$i] += $rp;

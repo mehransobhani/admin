@@ -273,3 +273,9 @@ Route::get('/sitemap/stepbystep.xml', [SitemapController::class, 'stepByStep']);
 Route::get('/sitemap/product{id}.xml', [SitemapController::class, 'productSiteMap']);
 Route::get('/sitemap/categories.xml', [SitemapController::class, 'categories']);
 Route::get('/sitemap/primary.xml', [SitemapController::class, 'primary']);
+
+
+Route::get('/googlee321b08d672c99df.html', function () {
+    //return view('welcome');
+    return "google-site-verification: googlee321b08d672c99df.html";
+ });
